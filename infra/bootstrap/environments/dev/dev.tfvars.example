@@ -1,0 +1,12 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+tenant_id       = "00000000-0000-0000-0000-000000000000"
+common_prefix   = "agilis"
+location        = "eastus"
+# Optional extra tags merged with defaults
+tags = {
+  owner = "platform-team"
+}
+
+# Set to false only if you've configured private connectivity to the storage endpoint.
+storage_account_public_network_access_enabled = true
+

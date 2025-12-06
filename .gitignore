@@ -1,0 +1,4 @@
+infra/bootstrap/environments/dev/dev.auto.tfvars
+infra/bootstrap/environments/prod/prod.auto.tfvars
+infra/environments/prod/prod.auto.tfvars
+infra/environments/dev/dev.auto.tfvars

@@ -1,0 +1,17 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+tenant_id       = "00000000-0000-0000-0000-000000000000"
+common_prefix   = "agilis"
+location        = "eastus"
+
+# Optional additional tags merged with the defaults defined in the root module.
+tags = {
+  owner = "platform-team"
+}
+
+app_service_sku_name = "S2"
+
+# Cosmos DB dev sizing
+cosmos_mongo_database_max_throughput = 1000
+cosmos_free_tier_enabled             = true
+cosmos_enable_automatic_failover     = false
+cosmos_account_name_suffix           = "dev"
