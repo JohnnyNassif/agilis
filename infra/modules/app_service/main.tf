@@ -1,6 +1,6 @@
 locals {
   plan_name = format("asp-%s-web", var.name_prefix)
-  app_name  = format("app-%s-api", var.name_prefix)
+  app_name  = format("app-%s-api%s", var.name_prefix, var.name_suffix)
 }
 
 resource "azurerm_service_plan" "this" {
@@ -23,7 +23,7 @@ resource "azurerm_linux_web_app" "this" {
 
   site_config {
     ftps_state          = "Disabled"
-    always_on           = true
+    always_on           = var.always_on
     http2_enabled       = true
     minimum_tls_version = "1.2"
     application_stack {

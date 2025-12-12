@@ -13,9 +13,9 @@ locals {
 module "state_backend" {
   source = "./modules/state_backend"
 
-  name_prefix                      = local.name_prefix
-  location                         = var.location
-  tags                             = local.tags
-  storage_account_replication_type = var.storage_account_replication_type
+  name_prefix                                   = local.name_prefix
+  location                                      = var.location
+  tags                                          = local.tags
+  storage_account_replication_type              = var.storage_account_replication_type
   storage_account_public_network_access_enabled = var.storage_account_public_network_access_enabled
 }

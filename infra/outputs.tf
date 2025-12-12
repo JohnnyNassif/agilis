@@ -38,6 +38,20 @@ output "app_service_identity_principal_id" {
   value       = module.app_service.principal_id
 }
 
+output "storage_account_name" {
+  description = "Storage account name."
+  value       = module.storage.storage_account_name
+}
+
+output "storage_primary_blob_endpoint" {
+  description = "Primary blob endpoint of the storage account."
+  value       = module.storage.primary_blob_endpoint
+}
+
+output "storage_private_endpoint_id" {
+  description = "ID of the storage private endpoint."
+  value       = module.storage.private_endpoint_id
+}
 output "cosmos_account_name" {
   description = "Cosmos DB account name."
   value       = module.cosmos_mongo.account_name
@@ -46,4 +60,24 @@ output "cosmos_account_name" {
 output "cosmos_account_endpoint" {
   description = "Cosmos DB account endpoint."
   value       = module.cosmos_mongo.account_endpoint
+}
+
+output "key_vault_id" {
+  description = "ID of the Key Vault."
+  value       = module.key_vault.key_vault_id
+}
+
+output "key_vault_name" {
+  description = "Name of the Key Vault."
+  value       = module.key_vault.key_vault_name
+}
+
+output "key_vault_uri" {
+  description = "URI of the Key Vault."
+  value       = module.key_vault.key_vault_uri
+}
+
+output "key_vault_private_endpoint_id" {
+  description = "ID of the Key Vault private endpoint."
+  value       = module.key_vault.private_endpoint_id
 }

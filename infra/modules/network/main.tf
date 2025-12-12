@@ -1,6 +1,6 @@
 locals {
-  vnet_name       = format("vnet-%s-main", var.name_prefix)
-  app_subnet_name = format("snet-%s-app", var.name_prefix)
+  vnet_name        = format("vnet-%s-main", var.name_prefix)
+  app_subnet_name  = format("snet-%s-app", var.name_prefix)
   data_subnet_name = format("snet-%s-data", var.name_prefix)
 
   app_nsg_name  = format("nsg-%s-app", var.name_prefix)

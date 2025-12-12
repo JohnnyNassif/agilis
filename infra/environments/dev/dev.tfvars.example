@@ -9,9 +9,16 @@ tags = {
 }
 
 app_service_sku_name = "S2"
+# Always On disabled for F1/S dev plans
+app_service_always_on = false
+app_service_name_suffix = "-dev1"
 
 # Cosmos DB dev sizing
 cosmos_mongo_database_max_throughput = 1000
 cosmos_free_tier_enabled             = true
 cosmos_enable_automatic_failover     = false
 cosmos_account_name_suffix           = "dev"
+
+storage_account_replication_type = "ZRS"
+storage_account_tier             = "Standard"
+storage_container_names          = ["phi-files"]

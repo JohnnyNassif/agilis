@@ -25,6 +25,12 @@ variable "app_service_plan_capacity" {
   default     = 1
 }
 
+variable "always_on" {
+  description = "Whether to enable Always On for the App Service."
+  type        = bool
+  default     = true
+}
+
 variable "app_settings" {
   description = "Map of App Service application settings."
   type        = map(string)
@@ -44,6 +50,12 @@ variable "connection_strings" {
 variable "subnet_id" {
   description = "Subnet ID used for VNet integration."
   type        = string
+}
+
+variable "name_suffix" {
+  description = "Optional suffix appended to the web app name."
+  type        = string
+  default     = ""
 }
 
 variable "node_version" {

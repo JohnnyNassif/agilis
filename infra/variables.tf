@@ -53,7 +53,7 @@ variable "data_subnet_cidr" {
 variable "app_service_sku_name" {
   description = "SKU name for the App Service plan (e.g., P1v3, S2)."
   type        = string
-  default     = "P1v3"
+  default     = "F1"
 }
 
 variable "app_service_plan_capacity" {
@@ -62,13 +62,25 @@ variable "app_service_plan_capacity" {
   default     = 1
 }
 
+variable "app_service_always_on" {
+  description = "Whether to enable Always On for the App Service."
+  type        = bool
+  default     = true
+}
+
 variable "app_service_app_settings" {
   description = "Additional App Service application settings."
   type        = map(string)
-  default     = {
+  default = {
     COSMOS_CONNECTION_STRING = "__vault_reference__"
     STORAGE_ACCOUNT_URL      = "__vault_reference__"
   }
+}
+
+variable "app_service_name_suffix" {
+  description = "Optional suffix appended to the App Service name."
+  type        = string
+  default     = ""
 }
 
 variable "app_service_connection_strings" {
@@ -153,6 +165,24 @@ variable "cosmos_account_name_suffix" {
   default     = ""
 }
 
+variable "storage_account_replication_type" {
+  description = "Replication type for the storage account (LRS/ZRS/etc)."
+  type        = string
+  default     = "ZRS"
+}
+
+variable "storage_account_tier" {
+  description = "Tier for the storage account (Standard or Premium)."
+  type        = string
+  default     = "Standard"
+}
+
+variable "storage_container_names" {
+  description = "List of blob container names to create."
+  type        = list(string)
+  default     = ["phi-files"]
+}
+
 variable "log_analytics_retention_in_days" {
   description = "Retention period in days for Log Analytics workspace data."
   type        = number
@@ -163,4 +193,46 @@ variable "archive_after_days" {
   description = "Number of days before moving PHI blobs to an archive tier."
   type        = number
   default     = 30
+}
+
+variable "key_vault_sku_name" {
+  description = "SKU name for Key Vault (standard or premium)."
+  type        = string
+  default     = "standard"
+}
+
+variable "key_vault_soft_delete_retention_days" {
+  description = "Number of days to retain soft-deleted Key Vault."
+  type        = number
+  default     = 90
+}
+
+variable "key_vault_purge_protection_enabled" {
+  description = "Enable purge protection for Key Vault."
+  type        = bool
+  default     = true
+}
+
+variable "key_vault_cosmos_secret_name" {
+  description = "Name of the secret in Key Vault for Cosmos connection string."
+  type        = string
+  default     = "cosmos-connection-string"
+}
+
+variable "key_vault_storage_key_secret_name" {
+  description = "Name of the secret in Key Vault for Storage account key."
+  type        = string
+  default     = "storage-account-key"
+}
+
+variable "key_vault_storage_name_secret_name" {
+  description = "Name of the secret in Key Vault for Storage account name."
+  type        = string
+  default     = "storage-account-name"
+}
+
+variable "terraform_principal_id" {
+  description = "Principal ID of the Terraform service principal for Key Vault secret management (optional)."
+  type        = string
+  default     = null
 }
