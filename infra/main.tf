@@ -49,14 +49,16 @@ module "app_service" {
   tags                      = local.tags
 }
 
-# Update App Service app_settings with Key Vault references after Key Vault is created
-resource "null_resource" "update_app_service_vault_refs" {
+# Update App Service app_settings with Key Vault references and Application Insights after resources are created
+resource "null_resource" "update_app_service_settings" {
   triggers = {
     app_service_name    = module.app_service.app_service_name
     key_vault_uri       = module.key_vault.key_vault_uri
     cosmos_secret_name  = var.key_vault_cosmos_secret_name
     storage_key_secret  = var.key_vault_storage_key_secret_name
     storage_name_secret = var.key_vault_storage_name_secret_name
+    app_insights_key    = module.monitoring.application_insights_instrumentation_key
+    app_insights_conn   = module.monitoring.application_insights_connection_string
   }
 
   provisioner "local-exec" {
@@ -69,8 +71,10 @@ resource "null_resource" "update_app_service_vault_refs" {
       COSMOS_SECRET="${var.key_vault_cosmos_secret_name}"
       STORAGE_KEY_SECRET="${var.key_vault_storage_key_secret_name}"
       STORAGE_NAME_SECRET="${var.key_vault_storage_name_secret_name}"
+      APP_INSIGHTS_KEY="${module.monitoring.application_insights_instrumentation_key}"
+      APP_INSIGHTS_CONN="${module.monitoring.application_insights_connection_string}"
       
-      echo "Updating App Service app_settings with Key Vault references..."
+      echo "Updating App Service app_settings with Key Vault references and Application Insights..."
       az webapp config appsettings set \
         --name "$APP_SERVICE" \
         --resource-group "$RESOURCE_GROUP" \
@@ -78,15 +82,18 @@ resource "null_resource" "update_app_service_vault_refs" {
           COSMOS_CONNECTION_STRING="@Microsoft.KeyVault(SecretUri=$${KV_URI}secrets/$${COSMOS_SECRET}/)" \
           STORAGE_ACCOUNT_KEY="@Microsoft.KeyVault(SecretUri=$${KV_URI}secrets/$${STORAGE_KEY_SECRET}/)" \
           STORAGE_ACCOUNT_NAME="@Microsoft.KeyVault(SecretUri=$${KV_URI}secrets/$${STORAGE_NAME_SECRET}/)" \
+          APPINSIGHTS_INSTRUMENTATIONKEY="$$APP_INSIGHTS_KEY" \
+          APPLICATIONINSIGHTS_CONNECTION_STRING="$$APP_INSIGHTS_CONN" \
         --output none
       
-      echo "App Service app_settings updated with Key Vault references."
+      echo "App Service app_settings updated successfully."
     EOT
   }
 
   depends_on = [
     module.app_service,
-    module.key_vault
+    module.key_vault,
+    module.monitoring
   ]
 }
 
@@ -148,6 +155,7 @@ module "key_vault" {
   virtual_network_id            = module.network.vnet_id
   app_service_principal_id      = module.app_service.principal_id
   terraform_principal_id        = var.terraform_principal_id
+  additional_rbac_assignments   = var.key_vault_additional_rbac_assignments
   sku_name                       = var.key_vault_sku_name
   soft_delete_retention_days    = var.key_vault_soft_delete_retention_days
   purge_protection_enabled      = var.key_vault_purge_protection_enabled
@@ -164,6 +172,65 @@ module "key_vault" {
     module.storage,
     module.app_service
   ]
+}
+
+# Monitoring: Log Analytics Workspace + Application Insights + Diagnostic Settings
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  name_prefix              = local.name_prefix
+  location                 = var.location
+  resource_group_name      = module.resource_group.resource_group_name
+  retention_in_days        = var.log_analytics_retention_in_days
+  app_service_id           = module.app_service.app_service_id
+  cosmos_account_id        = module.cosmos_mongo.account_id
+  storage_account_id       = module.storage.storage_account_id
+  key_vault_id             = module.key_vault.key_vault_id
+  tags                     = local.tags
+
+  depends_on = [
+    module.app_service,
+    module.cosmos_mongo,
+    module.storage,
+    module.key_vault
+  ]
+}
+
+# Azure Bastion with Windows Jump VM (optional, pay-as-you-go)
+module "bastion" {
+  count = var.bastion_enabled ? 1 : 0
+
+  source = "./modules/bastion"
+
+  name_prefix         = local.name_prefix
+  location            = var.location
+  resource_group_name = module.resource_group.resource_group_name
+  virtual_network_name = module.network.vnet_name
+  bastion_subnet_cidr = var.bastion_subnet_cidr
+  vm_subnet_cidr      = var.bastion_vm_subnet_cidr
+  vm_size              = var.bastion_vm_size
+  vm_admin_username    = var.bastion_vm_admin_username
+  vm_admin_password     = var.bastion_vm_admin_password != null ? var.bastion_vm_admin_password : random_password.bastion_vm_password[0].result
+  auto_shutdown_enabled = var.bastion_auto_shutdown_enabled
+  auto_shutdown_time    = var.bastion_auto_shutdown_time
+  auto_shutdown_timezone = var.bastion_auto_shutdown_timezone
+  key_vault_id          = module.key_vault.key_vault_id
+  tags                  = local.tags
+
+  depends_on = [
+    module.network,
+    module.key_vault
+  ]
+}
+
+# Generate random password for Windows VM if not provided
+resource "random_password" "bastion_vm_password" {
+  count   = var.bastion_enabled && var.bastion_vm_admin_password == null ? 1 : 0
+  length  = 20
+  special = true
+  upper   = true
+  lower   = true
+  numeric = true
 }
 
 # Modules will be added incrementally. Each module will consume the shared

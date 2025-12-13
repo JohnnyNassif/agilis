@@ -81,3 +81,24 @@ output "key_vault_private_endpoint_id" {
   description = "ID of the Key Vault private endpoint."
   value       = module.key_vault.private_endpoint_id
 }
+
+output "bastion_vm_name" {
+  description = "Name of the Windows jump VM (if Bastion is enabled)."
+  value       = var.bastion_enabled ? module.bastion[0].vm_name : null
+}
+
+output "bastion_vm_admin_username" {
+  description = "Administrator username for the Windows jump VM (if Bastion is enabled)."
+  value       = var.bastion_enabled ? module.bastion[0].vm_admin_username : null
+}
+
+output "bastion_vm_password" {
+  description = "Auto-generated password for Windows jump VM (only if password was auto-generated and Bastion is enabled). Use 'terraform output -raw bastion_vm_password' to retrieve."
+  value       = var.bastion_enabled && var.bastion_vm_admin_password == null ? random_password.bastion_vm_password[0].result : null
+  sensitive   = true
+}
+
+output "bastion_name" {
+  description = "Name of the Azure Bastion host (if Bastion is enabled)."
+  value       = var.bastion_enabled ? module.bastion[0].bastion_name : null
+}

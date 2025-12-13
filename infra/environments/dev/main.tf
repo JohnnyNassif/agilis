@@ -22,5 +22,15 @@ module "agilis_dev" {
   key_vault_sku_name                   = var.key_vault_sku_name
   key_vault_soft_delete_retention_days = var.key_vault_soft_delete_retention_days
   key_vault_purge_protection_enabled   = var.key_vault_purge_protection_enabled
+  key_vault_additional_rbac_assignments = var.key_vault_additional_rbac_assignments
   terraform_principal_id               = var.terraform_principal_id
+  bastion_enabled                      = var.bastion_enabled
+  bastion_subnet_cidr                  = var.bastion_subnet_cidr
+  bastion_vm_subnet_cidr               = var.bastion_vm_subnet_cidr
+  bastion_vm_size                      = var.bastion_vm_size
+  bastion_vm_admin_username            = var.bastion_vm_admin_username
+  bastion_vm_admin_password            = var.bastion_vm_admin_password
+  bastion_auto_shutdown_enabled        = var.bastion_auto_shutdown_enabled
+  bastion_auto_shutdown_time           = var.bastion_auto_shutdown_time
+  bastion_auto_shutdown_timezone       = var.bastion_auto_shutdown_timezone
 }

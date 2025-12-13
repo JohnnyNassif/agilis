@@ -50,6 +50,61 @@ variable "data_subnet_cidr" {
   default     = "10.10.2.0/24"
 }
 
+variable "bastion_subnet_cidr" {
+  description = "CIDR block allocated for Azure Bastion subnet (minimum /27 = 32 IPs)."
+  type        = string
+  default     = "10.10.3.0/27"
+}
+
+variable "bastion_vm_subnet_cidr" {
+  description = "CIDR block allocated for Windows VM subnet (cannot use app subnet - it's delegated to App Service)."
+  type        = string
+  default     = "10.10.4.0/24"
+}
+
+variable "bastion_enabled" {
+  description = "Enable Azure Bastion with Windows jump VM."
+  type        = bool
+  default     = false
+}
+
+variable "bastion_vm_size" {
+  description = "Size of the Windows jump VM (e.g., Standard_B1s)."
+  type        = string
+  default     = "Standard_B1s"
+}
+
+variable "bastion_vm_admin_username" {
+  description = "Administrator username for Windows jump VM."
+  type        = string
+  default     = "azureadmin"
+}
+
+variable "bastion_vm_admin_password" {
+  description = "Administrator password for Windows jump VM (must meet complexity requirements)."
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
+variable "bastion_auto_shutdown_enabled" {
+  description = "Enable auto-shutdown schedule for the jump VM."
+  type        = bool
+  default     = true
+}
+
+variable "bastion_auto_shutdown_time" {
+  description = "Time for auto-shutdown (24-hour format, e.g., '1800' for 6 PM)."
+  type        = string
+  default     = "1800"
+}
+
+variable "bastion_auto_shutdown_timezone" {
+  description = "Timezone for auto-shutdown schedule."
+  type        = string
+  default     = "UTC"
+}
+
 variable "app_service_sku_name" {
   description = "SKU name for the App Service plan (e.g., P1v3, S2)."
   type        = string
@@ -235,4 +290,13 @@ variable "terraform_principal_id" {
   description = "Principal ID of the Terraform service principal for Key Vault secret management (optional)."
   type        = string
   default     = null
+}
+
+variable "key_vault_additional_rbac_assignments" {
+  description = "List of additional RBAC role assignments for Key Vault. Format: [{ principal_id = \"...\", role_definition_name = \"Key Vault Secrets User\" }]"
+  type = list(object({
+    principal_id         = string
+    role_definition_name = string
+  }))
+  default = []
 }

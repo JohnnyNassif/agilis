@@ -128,3 +128,67 @@ variable "terraform_principal_id" {
   default     = null
 }
 
+variable "key_vault_additional_rbac_assignments" {
+  description = "List of additional RBAC role assignments for dev Key Vault."
+  type = list(object({
+    principal_id         = string
+    role_definition_name = string
+  }))
+  default = []
+}
+
+variable "bastion_enabled" {
+  description = "Enable Azure Bastion with Windows jump VM for dev."
+  type        = bool
+  default     = false
+}
+
+variable "bastion_subnet_cidr" {
+  description = "CIDR block for Bastion subnet in dev."
+  type        = string
+  default     = "10.10.3.0/27"
+}
+
+variable "bastion_vm_subnet_cidr" {
+  description = "CIDR block for Windows VM subnet in dev."
+  type        = string
+  default     = "10.10.4.0/24"
+}
+
+variable "bastion_vm_size" {
+  description = "Size of the Windows jump VM for dev."
+  type        = string
+  default     = "Standard_B1s"
+}
+
+variable "bastion_vm_admin_username" {
+  description = "Administrator username for Windows jump VM in dev."
+  type        = string
+  default     = "azureadmin"
+}
+
+variable "bastion_vm_admin_password" {
+  description = "Administrator password for Windows jump VM in dev (optional, will generate if not provided)."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "bastion_auto_shutdown_enabled" {
+  description = "Enable auto-shutdown schedule for dev jump VM."
+  type        = bool
+  default     = true
+}
+
+variable "bastion_auto_shutdown_time" {
+  description = "Time for auto-shutdown in dev (24-hour format, e.g., '1800' for 6 PM)."
+  type        = string
+  default     = "1800"
+}
+
+variable "bastion_auto_shutdown_timezone" {
+  description = "Timezone for auto-shutdown schedule in dev."
+  type        = string
+  default     = "UTC"
+}
+

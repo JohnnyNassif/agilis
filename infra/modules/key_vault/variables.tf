@@ -100,3 +100,12 @@ variable "tags" {
   type        = map(string)
 }
 
+variable "additional_rbac_assignments" {
+  description = "List of additional RBAC role assignments for Key Vault. Each entry should have 'principal_id' and 'role_definition_name'."
+  type = list(object({
+    principal_id         = string
+    role_definition_name = string
+  }))
+  default = []
+}
+

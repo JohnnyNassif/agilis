@@ -3,6 +3,11 @@ output "account_name" {
   value       = azurerm_cosmosdb_account.this.name
 }
 
+output "account_id" {
+  description = "ID of the Cosmos DB account."
+  value       = azurerm_cosmosdb_account.this.id
+}
+
 output "account_endpoint" {
   description = "Cosmos DB account endpoint."
   value       = azurerm_cosmosdb_account.this.endpoint

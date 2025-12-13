@@ -81,6 +81,18 @@ resource "azurerm_role_assignment" "terraform_secrets_officer" {
   principal_id         = var.terraform_principal_id
 }
 
+# Grant additional users/groups RBAC access to Key Vault
+resource "azurerm_role_assignment" "additional_users" {
+  for_each = {
+    for idx, assignment in var.additional_rbac_assignments : 
+    "${assignment.principal_id}-${assignment.role_definition_name}" => assignment
+  }
+  
+  scope                = azurerm_key_vault.this.id
+  role_definition_name = each.value.role_definition_name
+  principal_id         = each.value.principal_id
+}
+
 # Grant current Azure CLI user access to Key Vault for secret creation
 # This is done via Azure CLI since we need to detect the current user
 resource "null_resource" "grant_current_user_access" {
