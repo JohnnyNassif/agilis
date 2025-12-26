@@ -29,8 +29,9 @@ variable "virtual_network_id" {
 }
 
 variable "app_service_principal_id" {
-  description = "Principal ID of the App Service managed identity for Key Vault access."
+  description = "Principal ID of the App Service managed identity for Key Vault access (optional, can be set later)."
   type        = string
+  default     = null
 }
 
 variable "terraform_principal_id" {
@@ -57,40 +58,20 @@ variable "purge_protection_enabled" {
   default     = true
 }
 
-variable "cosmos_connection_string" {
-  description = "Cosmos DB connection string to store in Key Vault (optional, can be set later)."
-  type        = string
-  default     = null
-  sensitive   = true
-}
-
 variable "cosmos_connection_string_secret_name" {
-  description = "Name of the secret in Key Vault for Cosmos connection string."
+  description = "Name of the secret in Key Vault for Cosmos connection string (secrets are created in root module)."
   type        = string
   default     = "cosmos-connection-string"
 }
 
-variable "storage_account_key" {
-  description = "Storage account primary key to store in Key Vault (optional, can be set later)."
-  type        = string
-  default     = null
-  sensitive   = true
-}
-
 variable "storage_account_key_secret_name" {
-  description = "Name of the secret in Key Vault for Storage account key."
+  description = "Name of the secret in Key Vault for Storage account key (secrets are created in root module)."
   type        = string
   default     = "storage-account-key"
 }
 
-variable "storage_account_name" {
-  description = "Storage account name to store in Key Vault (for App Service to construct URLs)."
-  type        = string
-  default     = null
-}
-
 variable "storage_account_name_secret_name" {
-  description = "Name of the secret in Key Vault for Storage account name."
+  description = "Name of the secret in Key Vault for Storage account name (secrets are created in root module)."
   type        = string
   default     = "storage-account-name"
 }
@@ -107,5 +88,11 @@ variable "additional_rbac_assignments" {
     role_definition_name = string
   }))
   default = []
+}
+
+variable "enable_current_user_access" {
+  description = "Grant current user Key Vault Secrets Officer role (required for Terraform to create secrets when using personal account). Set to false for production when using service principal."
+  type        = bool
+  default     = true
 }
 

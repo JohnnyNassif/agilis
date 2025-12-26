@@ -17,9 +17,9 @@ resource "azurerm_cosmosdb_account" "this" {
   automatic_failover_enabled        = var.enable_automatic_failover
   free_tier_enabled                 = var.free_tier_enabled
   analytical_storage_enabled        = var.analytical_storage_enabled
-  public_network_access_enabled     = false
+  public_network_access_enabled     = true # Enabled - will be disabled by a script later for HIPAA compliance
   is_virtual_network_filter_enabled = true
-  local_authentication_disabled     = true
+  local_authentication_disabled     = false
   mongo_server_version              = var.server_version
 
   consistency_policy {
@@ -72,6 +72,12 @@ resource "azurerm_cosmosdb_mongo_collection" "this" {
   index {
     keys   = [var.mongo_collection_shard_key]
     unique = false
+  }
+
+  # Ignore changes to index - Cosmos DB automatically creates a unique _id index
+  # Terraform should not try to manage this automatic index
+  lifecycle {
+    ignore_changes = [index]
   }
 }
 

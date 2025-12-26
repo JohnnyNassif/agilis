@@ -28,3 +28,8 @@ output "vm_admin_username" {
   value       = var.vm_admin_username
 }
 
+output "vm_principal_id" {
+  description = "Principal ID of the Windows VM's managed identity."
+  value       = azurerm_windows_virtual_machine.jump.identity[0].principal_id
+}
+

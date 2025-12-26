@@ -8,3 +8,9 @@ infra/bootstrap/environments/dev/.terraform/
 infra/environments/dev/.terraform/
 infra/bootstrap/environments/dev/.terraform.lock.hcl
 infra/bootstrap/environments/dev/terraform.tfstate
+infra/bootstrap/environments/prod/.terraform/
+infra/environments/prod/.terraform/
+infra/environments/prod/.terraform.lock.hcl
+infra/bootstrap/environments/prod/.terraform.lock.hcl
+infra/bootstrap/environments/prod/terraform.tfstate
+infra/bootstrap/environments/dev/terraform.tfstate.backup

@@ -23,6 +23,7 @@ output "private_dns_zone_id" {
   value       = azurerm_private_dns_zone.key_vault.id
 }
 
+# Secret name outputs for reference (secrets created in root module)
 output "cosmos_connection_string_secret_name" {
   description = "Name of the Cosmos connection string secret."
   value       = var.cosmos_connection_string_secret_name
@@ -37,4 +38,16 @@ output "storage_account_name_secret_name" {
   description = "Name of the Storage account name secret."
   value       = var.storage_account_name_secret_name
 }
+
+# RBAC assignment outputs for secrets to depend on
+output "terraform_secrets_officer_assignment_id" {
+  description = "ID of the Terraform SPN role assignment (for secrets to depend on)."
+  value       = try(azurerm_role_assignment.terraform_secrets_officer[0].id, null)
+}
+
+output "current_user_secrets_officer_assignment_id" {
+  description = "ID of the current user role assignment (for secrets to depend on)."
+  value       = try(azurerm_role_assignment.current_user_secrets_officer[0].id, null)
+}
+
 

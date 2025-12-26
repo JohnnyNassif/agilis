@@ -47,6 +47,12 @@ variable "container_names" {
   default     = ["phi-files"]
 }
 
+variable "enable_infrastructure_encryption" {
+  description = "Enable infrastructure encryption (double encryption) for Storage Account. Required for HIPAA compliance. When enabled, data is encrypted twice - once at the service level and once at the infrastructure level."
+  type        = bool
+  default     = true
+}
+
 variable "tags" {
   description = "Tags to apply to storage resources."
   type        = map(string)

@@ -22,3 +22,8 @@ output "identity_tenant_id" {
   description = "System-assigned identity tenant ID."
   value       = azurerm_linux_web_app.this.identity[0].tenant_id
 }
+
+output "default_site_hostname" {
+  description = "Default hostname of the App Service (e.g., app-name.azurewebsites.net)."
+  value       = "${azurerm_linux_web_app.this.name}.azurewebsites.net"
+}

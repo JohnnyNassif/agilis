@@ -71,6 +71,18 @@ variable "key_vault_id" {
   type        = string
 }
 
+variable "storage_account_id" {
+  description = "Storage Account ID for granting VM managed identity access (optional)."
+  type        = string
+  default     = null
+}
+
+variable "cosmos_account_id" {
+  description = "Cosmos DB Account ID for granting VM managed identity access (optional)."
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Tags applied to Bastion resources."
   type        = map(string)

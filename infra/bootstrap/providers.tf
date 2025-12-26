@@ -15,6 +15,11 @@ terraform {
 provider "azurerm" {
   features {}
 
+  # Keep bootstrap consistent with the main `infra/` provider configuration.
+  # This avoids Azure Resource Provider registration races (409 ConflictingConcurrentWriteNotAllowed)
+  # that can happen frequently in brand-new subscriptions.
+  skip_provider_registration = true
+
   subscription_id = var.subscription_id
   tenant_id       = var.tenant_id
 }

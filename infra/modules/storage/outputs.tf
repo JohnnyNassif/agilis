@@ -22,3 +22,8 @@ output "private_dns_zone_id" {
   description = "ID of the private DNS zone for storage."
   value       = azurerm_private_dns_zone.storage.id
 }
+
+output "container_ids" {
+  description = "Map of container names to their resource IDs."
+  value       = { for k, v in azurerm_storage_container.this : k => v.id }
+}

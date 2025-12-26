@@ -17,3 +17,13 @@ output "data_subnet_id" {
   description = "ID of the data subnet for private endpoints."
   value       = azurerm_subnet.data.id
 }
+
+output "app_nsg_id" {
+  description = "ID of the application subnet NSG."
+  value       = azurerm_network_security_group.app.id
+}
+
+output "data_nsg_id" {
+  description = "ID of the data subnet NSG."
+  value       = azurerm_network_security_group.data.id
+}
