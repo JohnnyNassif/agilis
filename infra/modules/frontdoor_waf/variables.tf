@@ -19,6 +19,18 @@ variable "app_service_host_name" {
   type        = string
 }
 
+variable "whiteboard_app_service_host_name" {
+  description = "Optional hostname of the Whiteboard App Service backend (e.g., app-agilis-prod-api-white-board.azurewebsites.net). If set, Front Door will route /api/whiteboard/* to this origin."
+  type        = string
+  default     = null
+}
+
+variable "telehealth_app_service_host_name" {
+  description = "Optional hostname of the Telehealth App Service backend (e.g., app-agilis-prod-api-telemed.azurewebsites.net). If set, Front Door will route /api/telehealth/* to this origin."
+  type        = string
+  default     = null
+}
+
 variable "enable_static_web_app_frontend" {
   description = "Enable Static Web App frontend routing. If true, Front Door will route /* to Static Web App and /api/* to App Service."
   type        = bool

@@ -349,7 +349,9 @@ export const environment = {
 
 ### Option B: Static Web App App Settings
 
-Update `infra/environments/dev/dev.auto.tfvars`:
+App settings may be managed by the Agilis operator via infrastructure-as-code. If you need to change frontend configuration (e.g., API base URL), request the change from the Agilis operator.
+
+If you are explicitly instructed to manage Static Web App app settings via Terraform in your environment, update `infra/environments/dev/dev.auto.tfvars`:
 
 ```hcl
 static_web_app_app_settings = {
@@ -357,12 +359,7 @@ static_web_app_app_settings = {
 }
 ```
 
-Then apply Terraform:
-
-```bash
-cd infra/environments/dev
-terraform apply
-```
+Then the Agilis operator will apply the infrastructure change.
 
 ---
 

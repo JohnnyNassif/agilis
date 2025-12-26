@@ -38,23 +38,23 @@ module "network" {
 module "key_vault" {
   source = "./modules/key_vault"
 
-  name_prefix                = local.name_prefix
-  location                   = var.location
-  resource_group_name        = module.resource_group.resource_group_name
-  tenant_id                  = var.tenant_id
-  data_subnet_id             = module.network.data_subnet_id
-  virtual_network_id         = module.network.vnet_id
-  app_service_principal_id   = null # Will be set after App Service is created
-  terraform_principal_id     = var.terraform_principal_id
-  additional_rbac_assignments = var.key_vault_additional_rbac_assignments
-  enable_current_user_access = var.rbac_enable_current_user_access
-  sku_name                   = var.key_vault_sku_name
-  soft_delete_retention_days = var.key_vault_soft_delete_retention_days
-  purge_protection_enabled   = var.key_vault_purge_protection_enabled
+  name_prefix                          = local.name_prefix
+  location                             = var.location
+  resource_group_name                  = module.resource_group.resource_group_name
+  tenant_id                            = var.tenant_id
+  data_subnet_id                       = module.network.data_subnet_id
+  virtual_network_id                   = module.network.vnet_id
+  app_service_principal_id             = null # Will be set after App Service is created
+  terraform_principal_id               = var.terraform_principal_id
+  additional_rbac_assignments          = var.key_vault_additional_rbac_assignments
+  enable_current_user_access           = var.rbac_enable_current_user_access
+  sku_name                             = var.key_vault_sku_name
+  soft_delete_retention_days           = var.key_vault_soft_delete_retention_days
+  purge_protection_enabled             = var.key_vault_purge_protection_enabled
   cosmos_connection_string_secret_name = var.key_vault_cosmos_secret_name
   storage_account_key_secret_name      = var.key_vault_storage_key_secret_name
   storage_account_name_secret_name     = var.key_vault_storage_name_secret_name
-  tags                       = local.tags
+  tags                                 = local.tags
   # No secrets created here - they're created separately after Cosmos/Storage are ready
 }
 
@@ -94,7 +94,7 @@ module "storage" {
   virtual_network_id               = module.network.vnet_id
   account_replication_type         = var.storage_account_replication_type
   account_tier                     = var.storage_account_tier
-  container_names                  = var.storage_container_names
+  container_names                  = var.storage_manage_containers ? var.storage_container_names : []
   enable_infrastructure_encryption = var.storage_enable_infrastructure_encryption
   tags                             = local.tags
 }
@@ -109,9 +109,10 @@ data "azurerm_storage_account" "storage" {
 locals {
   cosmos_connection_string = "mongodb://${module.cosmos_mongo.account_name}:${module.cosmos_mongo.primary_key}@${module.cosmos_mongo.account_name}.mongo.cosmos.azure.net:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@${module.cosmos_mongo.account_name}@"
 
-  # Construct app_settings with Key Vault references and Application Insights
-  # Key Vault and Monitoring must exist before App Service
-  app_service_app_settings_with_vault = merge(
+  # Construct app_settings with Key Vault references and Application Insights.
+  # IMPORTANT: Only the main backend should receive secrets needed to access Cosmos/Storage.
+  # Whiteboard/Telehealth backends are intentionally configured without these settings.
+  app_service_app_settings_main_with_vault = merge(
     var.app_service_app_settings,
     {
       # Key Vault references (Key Vault is created before App Service)
@@ -119,6 +120,20 @@ locals {
       STORAGE_ACCOUNT_KEY      = "@Microsoft.KeyVault(SecretUri=${module.key_vault.key_vault_uri}secrets/${var.key_vault_storage_key_secret_name}/)"
       STORAGE_ACCOUNT_NAME     = "@Microsoft.KeyVault(SecretUri=${module.key_vault.key_vault_uri}secrets/${var.key_vault_storage_name_secret_name}/)"
       # Application Insights (Monitoring is created before App Service)
+      APPINSIGHTS_INSTRUMENTATIONKEY        = module.monitoring.application_insights_instrumentation_key
+      APPLICATIONINSIGHTS_CONNECTION_STRING = module.monitoring.application_insights_connection_string
+    }
+  )
+
+  # Settings for auxiliary backends (no Key Vault/Cosmos/Storage access).
+  # We explicitly strip any sensitive keys that might be present in var.app_service_app_settings.
+  app_service_app_settings_aux_no_vault = merge(
+    {
+      for k, v in var.app_service_app_settings :
+      k => v
+      if !contains(["COSMOS_CONNECTION_STRING", "STORAGE_ACCOUNT_KEY", "STORAGE_ACCOUNT_NAME", "STORAGE_ACCOUNT_URL"], k)
+    },
+    {
       APPINSIGHTS_INSTRUMENTATIONKEY        = module.monitoring.application_insights_instrumentation_key
       APPLICATIONINSIGHTS_CONNECTION_STRING = module.monitoring.application_insights_connection_string
     }
@@ -180,6 +195,12 @@ module "monitoring" {
   tags                = local.tags
 }
 
+# Data source for Log Analytics workspace customer ID (required by NSG Traffic Analytics)
+data "azurerm_log_analytics_workspace" "law" {
+  name                = module.monitoring.log_analytics_workspace_name
+  resource_group_name = module.resource_group.resource_group_name
+}
+
 # Create App Service fifth (main backend API with Key Vault references and Application Insights)
 module "app_service" {
   source = "./modules/app_service"
@@ -191,7 +212,7 @@ module "app_service" {
   app_service_plan_capacity = var.app_service_plan_capacity
   always_on                 = var.app_service_always_on
   name_suffix               = var.app_service_name_suffix
-  app_settings              = local.app_service_app_settings_with_vault # Includes Key Vault refs + App Insights
+  app_settings              = local.app_service_app_settings_main_with_vault # Includes Key Vault refs + App Insights
   connection_strings        = var.app_service_connection_strings
   subnet_id                 = module.network.app_subnet_id
   node_version              = var.app_service_node_version
@@ -214,7 +235,7 @@ module "app_service_whiteboard" {
   app_service_plan_capacity = var.app_service_whiteboard_plan_capacity
   always_on                 = var.app_service_whiteboard_always_on
   name_suffix               = "-white-board"
-  app_settings              = local.app_service_app_settings_with_vault # Same Key Vault refs + App Insights
+  app_settings              = local.app_service_app_settings_aux_no_vault # No Key Vault/Cosmos/Storage access
   connection_strings        = []
   subnet_id                 = module.network.app_subnet_id
   node_version              = var.app_service_node_version
@@ -237,7 +258,7 @@ module "app_service_telehealth" {
   app_service_plan_capacity = var.app_service_telehealth_plan_capacity
   always_on                 = var.app_service_telehealth_always_on
   name_suffix               = "-telemed"
-  app_settings              = local.app_service_app_settings_with_vault # Same Key Vault refs + App Insights
+  app_settings              = local.app_service_app_settings_aux_no_vault # No Key Vault/Cosmos/Storage access
   connection_strings        = []
   subnet_id                 = module.network.app_subnet_id
   node_version              = var.app_service_node_version
@@ -314,6 +335,38 @@ resource "azurerm_monitor_diagnostic_setting" "app_service" {
     module.app_service,
     module.monitoring
   ]
+}
+
+resource "azurerm_monitor_diagnostic_setting" "app_service_whiteboard" {
+  count                      = 1
+  name                       = format("diag-%s-app-whiteboard", local.name_prefix)
+  target_resource_id         = module.app_service_whiteboard.app_service_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+
+  enabled_log {
+    category_group = "allLogs"
+  }
+
+  metric {
+    category = "AllMetrics"
+    enabled  = true
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "app_service_telehealth" {
+  count                      = 1
+  name                       = format("diag-%s-app-telehealth", local.name_prefix)
+  target_resource_id         = module.app_service_telehealth.app_service_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+
+  enabled_log {
+    category_group = "allLogs"
+  }
+
+  metric {
+    category = "AllMetrics"
+    enabled  = true
+  }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "cosmos" {
@@ -429,6 +482,163 @@ resource "azurerm_monitor_diagnostic_setting" "key_vault" {
   ]
 }
 
+# Static Web App diagnostics (HTTP + diagnostic logs, plus metrics)
+resource "azurerm_monitor_diagnostic_setting" "static_web_app" {
+  count                      = 1
+  name                       = format("diag-%s-swa", local.name_prefix)
+  target_resource_id         = module.static_web_app.static_web_app_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+
+  enabled_log {
+    category = "StaticSiteHttpLogs"
+  }
+
+  enabled_log {
+    category = "StaticSiteDiagnosticLogs"
+  }
+
+  metric {
+    category = "AllMetrics"
+    enabled  = true
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "static_web_app_whiteboard" {
+  count                      = 1
+  name                       = format("diag-%s-swa-whiteboard", local.name_prefix)
+  target_resource_id         = module.static_web_app_whiteboard.static_web_app_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+
+  enabled_log {
+    category = "StaticSiteHttpLogs"
+  }
+
+  enabled_log {
+    category = "StaticSiteDiagnosticLogs"
+  }
+
+  metric {
+    category = "AllMetrics"
+    enabled  = true
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "static_web_app_telehealth" {
+  count                      = 1
+  name                       = format("diag-%s-swa-telehealth", local.name_prefix)
+  target_resource_id         = module.static_web_app_telehealth.static_web_app_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+
+  enabled_log {
+    category = "StaticSiteHttpLogs"
+  }
+
+  enabled_log {
+    category = "StaticSiteDiagnosticLogs"
+  }
+
+  metric {
+    category = "AllMetrics"
+    enabled  = true
+  }
+}
+
+# NSG diagnostics (rule hits + events)
+resource "azurerm_monitor_diagnostic_setting" "nsg_app" {
+  count                      = 1
+  name                       = format("diag-%s-nsg-app", local.name_prefix)
+  target_resource_id         = module.network.app_nsg_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+
+  enabled_log {
+    category = "NetworkSecurityGroupEvent"
+  }
+
+  enabled_log {
+    category = "NetworkSecurityGroupRuleCounter"
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "nsg_data" {
+  count                      = 1
+  name                       = format("diag-%s-nsg-data", local.name_prefix)
+  target_resource_id         = module.network.data_nsg_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+
+  enabled_log {
+    category = "NetworkSecurityGroupEvent"
+  }
+
+  enabled_log {
+    category = "NetworkSecurityGroupRuleCounter"
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "nsg_vm" {
+  count                      = var.bastion_enabled ? 1 : 0
+  name                       = format("diag-%s-nsg-vm", local.name_prefix)
+  target_resource_id         = module.bastion[0].vm_nsg_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+
+  enabled_log {
+    category = "NetworkSecurityGroupEvent"
+  }
+
+  enabled_log {
+    category = "NetworkSecurityGroupRuleCounter"
+  }
+}
+
+# Bastion diagnostics (audit logs + metrics)
+resource "azurerm_monitor_diagnostic_setting" "bastion" {
+  count                      = var.bastion_enabled ? 1 : 0
+  name                       = format("diag-%s-bastion", local.name_prefix)
+  target_resource_id         = module.bastion[0].bastion_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+
+  enabled_log {
+    category = "BastionAuditLogs"
+  }
+
+  metric {
+    category = "AllMetrics"
+    enabled  = true
+  }
+}
+
+# Application Insights diagnostic export to Log Analytics (unified retention/querying)
+resource "azurerm_monitor_diagnostic_setting" "application_insights" {
+  count                      = 1
+  name                       = format("diag-%s-appi", local.name_prefix)
+  target_resource_id         = module.monitoring.application_insights_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+
+  enabled_log {
+    category = "AppRequests"
+  }
+
+  enabled_log {
+    category = "AppExceptions"
+  }
+
+  enabled_log {
+    category = "AppDependencies"
+  }
+
+  enabled_log {
+    category = "AppTraces"
+  }
+
+  enabled_log {
+    category = "AppAvailabilityResults"
+  }
+
+  metric {
+    category = "AllMetrics"
+    enabled  = true
+  }
+}
+
 # P0.4: Front Door + WAF diagnostics to Log Analytics (so WAF alerts work)
 # This enables WAF logs to flow to Log Analytics for security alerts and Sentinel analytics
 resource "azurerm_monitor_diagnostic_setting" "frontdoor" {
@@ -463,6 +673,166 @@ resource "azurerm_monitor_diagnostic_setting" "frontdoor" {
     module.frontdoor_waf,
     module.monitoring
   ]
+}
+
+# ============================================================================
+# VM Guest-level Audit Logs (Windows) via Azure Monitor Agent (AMA) + DCR
+# ============================================================================
+# Diagnostic settings on a VM do not provide Windows Security Event Log.
+# This installs AMA on the Bastion jump VM and collects Windows event logs to Log Analytics.
+
+resource "azurerm_virtual_machine_extension" "bastion_vm_ama" {
+  count = var.bastion_enabled ? 1 : 0
+
+  name                       = format("ama-%s-jmp", local.name_prefix)
+  virtual_machine_id         = module.bastion[0].vm_id
+  publisher                  = "Microsoft.Azure.Monitor"
+  type                       = "AzureMonitorWindowsAgent"
+  type_handler_version       = "1.0"
+  auto_upgrade_minor_version = true
+
+  settings = jsonencode({})
+
+  depends_on = [
+    module.bastion
+  ]
+}
+
+resource "azurerm_monitor_data_collection_rule" "bastion_vm_windows_event_logs" {
+  count = var.bastion_enabled ? 1 : 0
+
+  name                = format("dcr-%s-jmp-wev", local.name_prefix)
+  resource_group_name = module.resource_group.resource_group_name
+  location            = var.location
+
+  destinations {
+    log_analytics {
+      name                  = "law"
+      workspace_resource_id = module.monitoring.log_analytics_workspace_id
+    }
+  }
+
+  data_flow {
+    streams      = ["Microsoft-WindowsEvent"]
+    destinations = ["law"]
+  }
+
+  data_sources {
+    windows_event_log {
+      name    = "windows-event-logs"
+      streams = ["Microsoft-WindowsEvent"]
+
+      # Collect security-relevant logs. You can narrow/expand these as needed.
+      x_path_queries = [
+        "Security!*[System[(Level=1 or Level=2 or Level=3 or Level=4 or Level=0)]]",
+        "System!*[System[(Level=1 or Level=2 or Level=3)]]",
+        "Application!*[System[(Level=1 or Level=2 or Level=3)]]"
+      ]
+    }
+  }
+}
+
+resource "azurerm_monitor_data_collection_rule_association" "bastion_vm_dcr_assoc" {
+  count = var.bastion_enabled ? 1 : 0
+
+  name                    = format("dcra-%s-jmp", local.name_prefix)
+  target_resource_id      = module.bastion[0].vm_id
+  data_collection_rule_id = azurerm_monitor_data_collection_rule.bastion_vm_windows_event_logs[0].id
+
+  depends_on = [
+    azurerm_virtual_machine_extension.bastion_vm_ama
+  ]
+}
+
+# ============================================================================
+# NSG Flow Logs (Network Watcher) + Traffic Analytics
+# ============================================================================
+# These are different from "diagnostic settings" on NSGs and are required for
+# flow-level visibility and certain Sentinel/alert queries (e.g., AzureNetworkAnalytics_CL).
+
+data "azurerm_network_watcher" "this" {
+  count = var.enable_nsg_flow_logs ? 1 : 0
+
+  name                = format("NetworkWatcher_%s", var.location)
+  resource_group_name = "NetworkWatcherRG"
+}
+
+resource "azurerm_network_watcher_flow_log" "nsg_app" {
+  count = var.enable_nsg_flow_logs ? 1 : 0
+
+  name                 = format("fl-%s-nsg-app", local.name_prefix)
+  network_watcher_name = data.azurerm_network_watcher.this[0].name
+  resource_group_name  = data.azurerm_network_watcher.this[0].resource_group_name
+
+  network_security_group_id = module.network.app_nsg_id
+  storage_account_id        = module.storage.storage_account_id
+  enabled                   = true
+  version                   = 2
+
+  retention_policy {
+    enabled = true
+    days    = var.nsg_flow_logs_retention_days
+  }
+
+  traffic_analytics {
+    enabled               = true
+    workspace_id          = data.azurerm_log_analytics_workspace.law.workspace_id
+    workspace_region      = var.location
+    workspace_resource_id = module.monitoring.log_analytics_workspace_id
+    interval_in_minutes   = var.nsg_flow_logs_traffic_analytics_interval_minutes
+  }
+}
+
+resource "azurerm_network_watcher_flow_log" "nsg_data" {
+  count = var.enable_nsg_flow_logs ? 1 : 0
+
+  name                 = format("fl-%s-nsg-data", local.name_prefix)
+  network_watcher_name = data.azurerm_network_watcher.this[0].name
+  resource_group_name  = data.azurerm_network_watcher.this[0].resource_group_name
+
+  network_security_group_id = module.network.data_nsg_id
+  storage_account_id        = module.storage.storage_account_id
+  enabled                   = true
+  version                   = 2
+
+  retention_policy {
+    enabled = true
+    days    = var.nsg_flow_logs_retention_days
+  }
+
+  traffic_analytics {
+    enabled               = true
+    workspace_id          = data.azurerm_log_analytics_workspace.law.workspace_id
+    workspace_region      = var.location
+    workspace_resource_id = module.monitoring.log_analytics_workspace_id
+    interval_in_minutes   = var.nsg_flow_logs_traffic_analytics_interval_minutes
+  }
+}
+
+resource "azurerm_network_watcher_flow_log" "nsg_vm" {
+  count = var.enable_nsg_flow_logs && var.bastion_enabled ? 1 : 0
+
+  name                 = format("fl-%s-nsg-vm", local.name_prefix)
+  network_watcher_name = data.azurerm_network_watcher.this[0].name
+  resource_group_name  = data.azurerm_network_watcher.this[0].resource_group_name
+
+  network_security_group_id = module.bastion[0].vm_nsg_id
+  storage_account_id        = module.storage.storage_account_id
+  enabled                   = true
+  version                   = 2
+
+  retention_policy {
+    enabled = true
+    days    = var.nsg_flow_logs_retention_days
+  }
+
+  traffic_analytics {
+    enabled               = true
+    workspace_id          = data.azurerm_log_analytics_workspace.law.workspace_id
+    workspace_region      = var.location
+    workspace_resource_id = module.monitoring.log_analytics_workspace_id
+    interval_in_minutes   = var.nsg_flow_logs_traffic_analytics_interval_minutes
+  }
 }
 
 # Azure Bastion with Windows Jump VM (optional, pay-as-you-go)
@@ -512,19 +882,21 @@ resource "random_password" "bastion_vm_password" {
 module "frontdoor_waf" {
   source = "./modules/frontdoor_waf"
 
-  name_prefix                    = local.name_prefix
-  resource_group_name            = module.resource_group.resource_group_name
-  sku_name                       = var.frontdoor_sku_name
-  app_service_host_name          = module.app_service.default_site_hostname
-  enable_static_web_app_frontend = true # Static Web App is always created, so enable frontend routing
-  static_web_app_host_name       = module.static_web_app.static_web_app_default_hostname
-  custom_domain_name             = var.frontdoor_custom_domain_name
-  health_probe_path              = var.frontdoor_health_probe_path
-  route_patterns_to_match        = var.frontdoor_route_patterns
-  waf_mode                       = var.frontdoor_waf_mode
-  waf_default_rule_set_action    = var.frontdoor_waf_default_rule_set_action
-  waf_bot_rule_set_action        = var.frontdoor_waf_bot_rule_set_action
-  tags                           = local.tags
+  name_prefix                      = local.name_prefix
+  resource_group_name              = module.resource_group.resource_group_name
+  sku_name                         = var.frontdoor_sku_name
+  app_service_host_name            = module.app_service.default_site_hostname
+  whiteboard_app_service_host_name = module.app_service_whiteboard.default_site_hostname
+  telehealth_app_service_host_name = module.app_service_telehealth.default_site_hostname
+  enable_static_web_app_frontend   = true # Static Web App is always created, so enable frontend routing
+  static_web_app_host_name         = module.static_web_app.static_web_app_default_hostname
+  custom_domain_name               = var.frontdoor_custom_domain_name
+  health_probe_path                = var.frontdoor_health_probe_path
+  route_patterns_to_match          = var.frontdoor_route_patterns
+  waf_mode                         = var.frontdoor_waf_mode
+  waf_default_rule_set_action      = var.frontdoor_waf_default_rule_set_action
+  waf_bot_rule_set_action          = var.frontdoor_waf_bot_rule_set_action
+  tags                             = local.tags
 
   depends_on = [
     module.app_service,   # App Service must exist before Front Door can target it
@@ -536,7 +908,7 @@ module "frontdoor_waf" {
 # This uses Azure CLI to configure IP restrictions with service tag and header validation
 # Note: Terraform's azurerm_app_service doesn't support service tag + header validation directly
 # IP Restrictions Script - REMOVED
-# Configure App Service IP restrictions manually using the checklist in HIPAA_COMPLIANCE_MANUAL_CHECKLIST.md
+# Configure App Service IP restrictions manually using the checklist in docs/shared/HIPAA_COMPLIANCE_MANUAL_CHECKLIST.md
 # This script was removed due to Windows/Git Bash compatibility issues
 
 # Azure Policy for HIPAA Compliance Enforcement
@@ -687,7 +1059,7 @@ module "rbac" {
 
 # Automatically disable public access on Storage Account, Key Vault, and Cosmos DB after provisioning
 # Disable Public Access Script - REMOVED
-# Disable public access manually using the checklist in HIPAA_COMPLIANCE_MANUAL_CHECKLIST.md
+# Disable public access manually using the checklist in docs/shared/HIPAA_COMPLIANCE_MANUAL_CHECKLIST.md
 # This script was removed due to Windows/Git Bash compatibility issues
 
 #

@@ -9,6 +9,9 @@ module "agilis_prod" {
   tags                                                  = var.tags
   log_analytics_retention_in_days                       = var.log_analytics_retention_in_days
   archive_after_days                                    = var.archive_after_days
+  enable_nsg_flow_logs                                  = var.enable_nsg_flow_logs
+  nsg_flow_logs_retention_days                          = var.nsg_flow_logs_retention_days
+  nsg_flow_logs_traffic_analytics_interval_minutes      = var.nsg_flow_logs_traffic_analytics_interval_minutes
   app_service_sku_name                                  = var.app_service_sku_name
   app_service_always_on                                 = var.app_service_always_on
   app_service_enable_ip_restrictions                    = var.app_service_enable_ip_restrictions
@@ -20,6 +23,7 @@ module "agilis_prod" {
   storage_account_replication_type                      = var.storage_account_replication_type
   storage_account_tier                                  = var.storage_account_tier
   storage_container_names                               = var.storage_container_names
+  storage_manage_containers                             = var.storage_manage_containers
   storage_enable_infrastructure_encryption              = var.storage_enable_infrastructure_encryption
   disable_public_access_automatically                   = var.disable_public_access_automatically
   key_vault_sku_name                                    = var.key_vault_sku_name

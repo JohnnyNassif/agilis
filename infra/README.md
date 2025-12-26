@@ -4,12 +4,14 @@ This repository provisions the Azure infrastructure for the Agilis multi-tenant 
 
 ## Quick Links
 
-- **[Frontend Deployment Guide](FRONTEND_DEPLOYMENT_GUIDE.md)** - Step-by-step guide for deploying Angular frontend to Azure Static Web Apps
+- **[Frontend Deployment Guide](docs/client/FRONTEND_DEPLOYMENT_GUIDE.md)** - Step-by-step guide for deploying Angular frontend to Azure Static Web Apps
+- **[Deployment Runbook (Internal)](docs/internal/DEPLOYMENT_RUNBOOK.md)** - Bootstrap + dev/prod deployment workflow (assumes Terraform runs from local machine)
+- **[HIPAA Manual Checklist](docs/shared/HIPAA_COMPLIANCE_MANUAL_CHECKLIST.md)** - Required post-deploy hardening steps (disable public access, App Service restrictions, verification)
+- **[Post-Deployment Checklist](docs/shared/POST_DEPLOYMENT_CHECKLIST.md)** - Verification steps after `terraform apply`
 
 ## Prerequisites
 - Terraform >= 1.5
 - Azure CLI installed and authenticated (`az login` or Service Principal credentials)
-  - Required for storage container creation via Resource Manager API (bypasses data plane restrictions)
 - Access to the target Azure subscriptions
 
 ## Bootstrap Remote State (per environment)
@@ -82,14 +84,14 @@ Repeat for prod once its bootstrap apply has completed.
 
 **Storage Container & Key Vault Secret Provisioning**: Both containers and secrets are created automatically during `terraform apply` using a consolidated approach:
 
-- **Storage Containers**: All containers are created using Terraform's native `azurerm_storage_container` resources. Public access is currently enabled to facilitate infrastructure development and testing.
+- **Storage Containers**: All containers are created using Terraform's native `azurerm_storage_container` resources (data-plane operations). If Storage public access is disabled and Terraform runs outside the VNet, plan/apply may fail with 403s. If you must manage containers via Terraform, run Terraform from inside the VNet (jump VM/runner), or stop managing containers with Terraform.
 
-- **Key Vault Secrets**: All secrets (Cosmos connection string, Storage account key, Storage account name) are created using Terraform's native `azurerm_key_vault_secret` resources. Public access is currently enabled to facilitate infrastructure development and testing.
+- **Key Vault Secrets**: Secrets (Cosmos connection string, Storage account key, Storage account name) are created using Terraform's native `azurerm_key_vault_secret` resources.
 
-**HIPAA Compliance**: Public access is currently **enabled** for Storage Account, Cosmos DB, and Key Vault. After all HIPAA resources are created, public access should be disabled manually (see "HIPAA Compliance - Disabling Public Access" section below).
+**HIPAA hardening note**: After deployment, disable public access per the manual checklist: `infra/docs/shared/HIPAA_COMPLIANCE_MANUAL_CHECKLIST.md`. Terraform is configured to avoid reverting approved manual hardening on Key Vault/Cosmos/App Service restrictions where applicable.
 
 ## Environment Defaults
-- **Dev**: Uses Standard S2 App Service, Cosmos autoscale up to 1000 RU/s, free tier enabled, no auto failover.
+- **Dev**: Uses Basic B1 App Service, Cosmos autoscale up to 1000 RU/s, free tier enabled, no auto failover.
 - **Prod**: Uses Premium v3 App Service, Cosmos autoscale 4000 RU/s, failover enabled, no free tier.
 
 Adjust these via the tfvars files as needed.
@@ -107,18 +109,14 @@ Adjust these via the tfvars files as needed.
 
 ## HIPAA Compliance - Disabling Public Access
 
-**NOTE**: Currently, public access is **enabled** for Storage Account, Cosmos DB, and Key Vault to facilitate infrastructure development and testing.
+Follow `infra/docs/shared/HIPAA_COMPLIANCE_MANUAL_CHECKLIST.md` (portal steps + verification).
 
-**After all HIPAA resources are created**, you can manually disable public access by:
+**CLI quick commands (optional):**
+- Storage Account: `az storage account update --name <name> --resource-group <rg> --public-network-access Disabled`
+- Key Vault: `az keyvault update --name <name> --resource-group <rg> --public-network-access Disabled` and `az keyvault network-rule set --name <name> --resource-group <rg> --default-action Deny`
+- Cosmos DB: `az cosmosdb update --name <name> --resource-group <rg> --public-network-access Disabled`
 
-1. **Uncomment the `disable_public_access` script** in `infra/main.tf` (lines 355-572)
-2. **Run the script** via Terraform: `terraform apply -var-file="dev.auto.tfvars" -auto-approve`
-3. **Or manually disable** via Azure Portal/CLI:
-   - Storage Account: `az storage account update --name <name> --resource-group <rg> --public-network-access Disabled`
-   - Key Vault: `az keyvault update --name <name> --resource-group <rg> --public-network-access Disabled` + `az keyvault network-rule set --name <name> --resource-group <rg> --default-action Deny`
-   - Cosmos DB: Set `public_network_access_enabled = false` in Terraform and apply
-
-**Important**: After disabling public access, Terraform may not be able to refresh storage container state from your local machine. Use `terraform apply -refresh=false` for subsequent runs, or manage containers via Azure Portal/CLI from within the VNet (via Bastion).
+**Important:** After disabling public access, Terraform from a local machine may fail on data-plane resources (notably Storage containers). If you must manage data-plane resources with Terraform, run Terraform from inside the VNet (jump VM/runner).
 
 ## Azure Bastion Usage (Pay-as-You-Go)
 

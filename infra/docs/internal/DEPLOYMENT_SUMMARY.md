@@ -1,7 +1,7 @@
 # Multi-App Support - Implementation Summary
 
 **Date:** December 18, 2025  
-**Status:** ✅ Complete and Ready for Deployment
+**Status:** ℹ️ Historical summary (verify current Terraform state before using)
 
 ---
 
@@ -19,8 +19,8 @@ Your infrastructure now supports **6 separate applications** (3 frontends + 3 ba
 
 ### Architecture Highlights
 
-✅ **Main Portal** is the only app exposed via Front Door (WAF protected)  
-✅ **Whiteboard & Telehealth** use direct URLs (embedded in Main Portal via iframes)  
+✅ **Main Portal** is exposed via Front Door (WAF protected)  
+✅ **Whiteboard & Telehealth** may use direct URLs (embedded in Main Portal via iframes) depending on your chosen Front Door routing approach  
 ✅ **All backends** share the same VNet, Key Vault, Cosmos DB, and Storage  
 ✅ **Cost-optimized** - Whiteboard/Telehealth use minimal B1/Free tiers  
 
@@ -62,7 +62,7 @@ Your infrastructure now supports **6 separate applications** (3 frontends + 3 ba
 - Telehealth: Free Static Web App + B1 App Service (minimal tier)
 - **Total estimated cost:** ~$161/month for all 6 apps
 
-### 6. **infra/MULTI_APP_ARCHITECTURE.md** (NEW)
+### 6. **infra/docs/archive/MULTI_APP_ARCHITECTURE.md** (Archived reference)
 - Comprehensive documentation on multi-app architecture
 - Deployment guide
 - Frontend integration examples (Angular + iframes)
@@ -209,10 +209,14 @@ After deployment, verify:
 - [ ] Whiteboard iframe loads within main portal
 - [ ] Telehealth iframe loads within main portal
 - [ ] No CORS errors in browser console
-- [ ] All backends can access Cosmos DB (same connection string)
-- [ ] All backends can access Storage (same Key Vault secrets)
+- [ ] Main backend can access Cosmos DB (via Key Vault connection string)
+- [ ] Main backend can access Storage (via Key Vault secrets)
 - [ ] Application Insights shows telemetry from all 3 backends
 - [ ] Log Analytics shows logs from all 6 applications
+- [ ] Front Door routes API paths correctly:
+  - `/api/*` → main backend
+  - `/api/telehealth/*` → telehealth backend (rewritten to `/api/*` at origin)
+  - `/api/whiteboard/*` → whiteboard backend (rewritten to `/api/*` at origin)
 
 ---
 
@@ -234,10 +238,10 @@ This will remove only the new resources, leaving your main app untouched.
 
 ## 📚 Additional Documentation
 
-- **Multi-App Architecture:** `MULTI_APP_ARCHITECTURE.md`
-- **Storage Lifecycle Policy:** `STORAGE_LIFECYCLE_POLICY.md`
-- **Frontend Deployment:** `FRONTEND_DEPLOYMENT_GUIDE.md`
-- **Infrastructure Review:** `INFRASTRUCTURE_REVIEW.md`
+- **Multi-App Architecture (archived):** `../archive/MULTI_APP_ARCHITECTURE.md`
+- **Storage Lifecycle Policy:** `../shared/STORAGE_LIFECYCLE_POLICY.md`
+- **Frontend Deployment:** `../client/FRONTEND_DEPLOYMENT_GUIDE.md`
+- **Infrastructure Review:** `INFRASTRUCTURE_REVIEW.md` (this folder)
 
 ---
 
@@ -267,7 +271,7 @@ This will remove only the new resources, leaving your main app untouched.
 
 ### Q: Can I put whiteboard/telehealth behind Front Door too?
 
-**A:** Yes. See `MULTI_APP_ARCHITECTURE.md` for instructions. This will add ~$70/month for 2 more Front Door Premium instances.
+**A:** Yes. You can add additional origins/routes to the existing Front Door profile (path-based routing). This typically does **not** require additional Front Door profiles; validate cost impact based on your traffic volume and rules.
 
 ### Q: What if I only want to add whiteboard first?
 
@@ -275,9 +279,8 @@ This will remove only the new resources, leaving your main app untouched.
 
 ---
 
-**Code Status:** ✅ Validated with `terraform fmt` (no issues)  
-**Linter Status:** ⚠️ LSP may show errors until refresh (ignore them - code is valid)  
-**Ready for Deployment:** ✅ Yes
+**Code Status:** ℹ️ Historical note (verify current repo state before use)
+**Ready for Deployment:** ✅ Depends on current environment configuration + post-deployment hardening completion
 
 ---
 

@@ -5,14 +5,16 @@
 
 Use this checklist to ensure your infrastructure is ready for deployment.
 
+**Canonical reference:** `infra/docs/internal/DEPLOYMENT_RUNBOOK.md` (this folder)
+
 ---
 
 ## ✅ Pre-Deployment (MUST DO)
 
 ### Critical Issue Fix
-- [ ] **🚨 CRITICAL:** Set `local_authentication_disabled = false` in `infra/modules/cosmos_mongo/main.tf` (line 22)
-  - Without this fix, the application CANNOT connect to the database
-  - See `CRITICAL_ISSUE_SUMMARY.md` for details
+- [ ] **Cosmos DB auth check:** Verify `local_authentication_disabled = false` in `infra/modules/cosmos_mongo/main.tf` (line 22)
+  - This repo uses a primary-key-based connection string; disabling local authentication would break app connectivity.
+  - See `CRITICAL_ISSUE_SUMMARY.md` for context (this folder)
 
 ### Azure Prerequisites
 - [ ] Azure CLI installed (`az --version`)
@@ -36,7 +38,7 @@ Use this checklist to ensure your infrastructure is ready for deployment.
 - [x] `app_service_enable_ip_restrictions = false` (easier testing)
 - [x] `cosmos_free_tier_enabled = true` (free tier)
 - [x] `bastion_enabled = true` (for database access)
-- [x] `disable_public_access_automatically = false` (manual control)
+- [x] Public access hardening is completed manually post-deploy (see shared checklist)
 - [x] `frontdoor_sku_name = "Premium_AzureFrontDoor"` (includes OWASP rules)
 
 ### Optional Adjustments
@@ -56,7 +58,7 @@ Use this checklist to ensure your infrastructure is ready for deployment.
 - [ ] `app_service_enable_ip_restrictions = true` (block direct access)
 - [ ] `cosmos_free_tier_enabled = false` (only 1 free tier per subscription)
 - [ ] `cosmos_mongo_database_max_throughput = 4000` (or as needed)
-- [ ] `disable_public_access_automatically = true` (enforce HIPAA compliance)
+- [ ] Complete post-deployment hardening checklist (disable public access + verify private access)
 - [ ] `key_vault_purge_protection_enabled = true` (prevent accidental deletion)
 - [ ] `rbac_enable_admin_users = true` (client admin access)
 - [ ] `rbac_enable_current_user_access = false` (remove dev access)
@@ -188,9 +190,8 @@ terraform apply -var-file="<env>.auto.tfvars"
 
 **Solutions:**
 1. Verify `app_service_enable_ip_restrictions = true` in tfvars
-2. Check if `null_resource.app_service_ip_restrictions` ran successfully
-3. Manually verify IP restrictions in Portal → App Service → Networking → Access Restrictions
-4. Should see rules: "AllowFrontDoor" (priority 100), "DenyAll" (priority 2147483647)
+2. Manually verify IP restrictions in Portal → App Service → Networking → Access Restrictions
+3. Should see rules: "AllowFrontDoor" (priority 100), "DenyAll" (priority 2147483647)
 
 ---
 
@@ -265,11 +266,12 @@ terraform apply -var-file="<env>.auto.tfvars"
 ## 📞 Support Resources
 
 ### Documentation
-- **Full Review:** `INFRASTRUCTURE_REVIEW.md` (comprehensive analysis)
-- **Critical Issue:** `CRITICAL_ISSUE_SUMMARY.md` (database authentication fix)
-- **Frontend Deployment:** `FRONTEND_DEPLOYMENT_GUIDE.md`
-- **Post-Deployment:** `POST_DEPLOYMENT_CHECKLIST.md`
-- **Pre-Deployment Review:** `PRE_DEPLOYMENT_REVIEW.md`
+- **Full Review:** `INFRASTRUCTURE_REVIEW.md` (comprehensive analysis; this folder)
+- **Critical Issue:** `CRITICAL_ISSUE_SUMMARY.md` (database authentication fix; this folder)
+- **Frontend Deployment:** `../client/FRONTEND_DEPLOYMENT_GUIDE.md`
+- **Post-Deployment:** `../shared/POST_DEPLOYMENT_CHECKLIST.md`
+- **HIPAA Manual Checklist:** `../shared/HIPAA_COMPLIANCE_MANUAL_CHECKLIST.md`
+- **Pre-Deployment Review:** `PRE_DEPLOYMENT_REVIEW.md` (this folder)
 
 ### Azure Resources
 - [Azure HIPAA Compliance](https://docs.microsoft.com/en-us/azure/compliance/offerings/offering-hipaa-us)

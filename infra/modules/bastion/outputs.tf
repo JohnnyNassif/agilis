@@ -33,3 +33,8 @@ output "vm_principal_id" {
   value       = azurerm_windows_virtual_machine.jump.identity[0].principal_id
 }
 
+output "vm_nsg_id" {
+  description = "ID of the Network Security Group associated with the VM subnet."
+  value       = azurerm_network_security_group.vm.id
+}
+

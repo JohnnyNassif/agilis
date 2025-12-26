@@ -80,7 +80,7 @@ resource "azurerm_storage_account_network_rules" "this" {
 # Create containers using Terraform's native resources
 # Storage account has public access enabled, so containers can be created and managed via Terraform
 resource "azurerm_storage_container" "this" {
-  for_each              = toset(var.container_names)
+  for_each              = var.manage_containers ? toset(var.container_names) : toset([])
   name                  = each.value
   storage_account_name  = azurerm_storage_account.this.name
   container_access_type = "private"

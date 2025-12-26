@@ -145,6 +145,10 @@ resource "azurerm_windows_virtual_machine" "jump" {
     azurerm_network_interface.vm.id,
   ]
 
+  # Pin to Azure's current default/observed setting to avoid unintended drift changes.
+  # This keeps our AMA/DCR rollout strictly additive.
+  vm_agent_platform_updates_enabled = true
+
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"

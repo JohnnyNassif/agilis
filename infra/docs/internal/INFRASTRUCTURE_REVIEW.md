@@ -2,40 +2,44 @@
 
 **Review Date:** December 17, 2025
 **Reviewed By:** AI Assistant
-**Status:** ⚠️ **CRITICAL ISSUES FOUND** - Requires Immediate Attention
+**Status:** ✅ Review notes (updated for current repo state)
 
 ---
 
 ## Executive Summary
 
-This review assessed the Terraform infrastructure against the provided HIPAA-aligned architecture documentation. The infrastructure is **well-designed and comprehensive**, but contains **one critical blocker** that will prevent the application from connecting to the database in production.
+This review assessed the Terraform infrastructure against the provided HIPAA-aligned architecture documentation. The infrastructure is **well-designed and comprehensive**. A previously-noted Cosmos DB authentication mismatch is **resolved in the current code** (see update below).
+
+### Update (current repo state)
+- Cosmos DB `local_authentication_disabled` is now set to `false` in `infra/modules/cosmos_mongo/main.tf`, which allows the primary-key-based connection string approach used by this stack.
+- If you later choose to disable local authentication, you must also change the application authentication approach accordingly (Azure AD/RBAC, driver support permitting).
 
 ### Overall Assessment
 - ✅ **Architecture Alignment**: Excellent alignment with HIPAA requirements
 - ✅ **Security Controls**: Comprehensive implementation of technical safeguards
-- ⚠️ **Critical Issue**: Cosmos DB authentication configuration incompatible with connection string approach
+- ✅ **Cosmos DB Auth**: Compatible with current connection string approach
 - ✅ **Code Quality**: Clean, modular, well-documented Terraform code
 - ✅ **Network Isolation**: Properly implemented zero-trust networking
 - ✅ **Monitoring & Logging**: Complete observability stack
 
 ---
 
-## 🚨 CRITICAL ISSUE: Cosmos DB Authentication Conflict
+## Cosmos DB Authentication Note (Resolved)
 
 ### Problem
 **File:** `infra/modules/cosmos_mongo/main.tf` (Line 22)
 
 ```terraform
-local_authentication_disabled = true
+local_authentication_disabled = false
 ```
 
 ### Impact
-**BLOCKER** - This setting will **prevent your application from connecting to Cosmos DB** in production.
+If this value is changed to `true` without updating the app auth strategy, the application will fail to authenticate to Cosmos DB.
 
 ### Explanation
 1. **Current Configuration**: 
-   - Cosmos DB has `local_authentication_disabled = true`
-   - This disables connection string-based authentication (primary/secondary keys)
+   - Cosmos DB has `local_authentication_disabled = false`
+   - This allows connection string-based authentication (primary/secondary keys)
    
 2. **Your Implementation**:
    - In `infra/main.tf` (line 82), you construct a MongoDB connection string using the primary key:
@@ -46,9 +50,9 @@ local_authentication_disabled = true
    - App Service retrieves it and attempts to connect using key-based authentication
    
 3. **The Conflict**:
-   - When `local_authentication_disabled = true`, the primary key is **rejected**
+   - If `local_authentication_disabled = true`, the primary key is **rejected**
    - The application will receive authentication errors when trying to connect
-   - This configuration requires **Azure AD authentication** or **RBAC-based access**, not connection strings
+   - That configuration requires **Azure AD authentication** / **RBAC-based access**, not key-based connection strings
 
 ### Recommended Solutions
 
@@ -111,12 +115,12 @@ resource "azurerm_cosmosdb_sql_role_assignment" "app_service_cosmos_contributor"
 - ⚠️ MongoDB drivers may have limited Azure AD support
 
 ### Recommendation
-**Implement Option 1** (disable `local_authentication_disabled`) because:
+**Keep Option 1** (`local_authentication_disabled = false`) because:
 1. Your current architecture is designed around connection string authentication
 2. The security difference is minimal when using Key Vault + Private Endpoints
 3. No application code changes needed
 4. Faster path to production
-5. Still fully HIPAA-compliant
+5. Compatible with the existing app authentication pattern
 
 ---
 
@@ -132,7 +136,7 @@ resource "azurerm_cosmosdb_sql_role_assignment" "app_service_cosmos_contributor"
 | Managed Identity | ✅ System-assigned identity enabled | ✅ Complete |
 | Frontend (Angular SPA) | ✅ `modules/static_web_app` - Azure Static Web Apps | ✅ Complete |
 
-**Verdict:** ✅ **Fully Compliant**
+**Verdict:** ✅ **Aligned with intended technical controls**
 
 ---
 
@@ -152,7 +156,7 @@ resource "azurerm_cosmosdb_sql_role_assignment" "app_service_cosmos_contributor"
 3. ✅ App Service → Private Endpoint → Storage (via VNet)
 4. ✅ App Service → Private Endpoint → Key Vault (via VNet)
 
-**Verdict:** ✅ **Fully Compliant - Zero Trust Implemented**
+**Verdict:** ✅ **Aligned - zero trust networking implemented**
 
 ---
 
@@ -168,7 +172,7 @@ resource "azurerm_cosmosdb_sql_role_assignment" "app_service_cosmos_contributor"
 | Infrastructure encryption | ✅ `infrastructure_encryption_enabled = true` | ✅ Complete |
 | Continuous backup | ✅ Configurable via `cosmos_continuous_backup_enabled` | ✅ Complete |
 
-**Verdict:** ✅ **Fully Compliant**
+**Verdict:** ✅ **Aligned with intended technical controls**
 
 ---
 
@@ -188,7 +192,7 @@ resource "azurerm_cosmosdb_sql_role_assignment" "app_service_cosmos_contributor"
 - ✅ Storage account key
 - ✅ Storage account name
 
-**Verdict:** ✅ **Fully Compliant**
+**Verdict:** ✅ **Aligned with intended technical controls**
 
 ---
 
@@ -216,7 +220,7 @@ resource "azurerm_cosmosdb_sql_role_assignment" "app_service_cosmos_contributor"
 - ✅ Direct access to `*.azurewebsites.net` is **blocked**
 - ✅ Header validation with `x-azure-fdid` for enhanced security
 
-**Verdict:** ✅ **Fully Compliant - Excellent Implementation**
+**Verdict:** ✅ **Strong implementation of intended controls**
 
 ---
 
@@ -239,7 +243,7 @@ resource "azurerm_cosmosdb_sql_role_assignment" "app_service_cosmos_contributor"
 - ✅ Admin Users → Resource Group (Contributor)
 - ✅ Admin Users → Subscription (Reader)
 
-**Verdict:** ✅ **Fully Compliant - Excellent Separation**
+**Verdict:** ✅ **Strong separation of duties and access controls**
 
 ---
 
@@ -279,7 +283,7 @@ resource "azurerm_cosmosdb_sql_role_assignment" "app_service_cosmos_contributor"
 - ✅ Configurable thresholds
 - ✅ 5-minute evaluation frequency
 
-**Verdict:** ✅ **Fully Compliant - Excellent Observability**
+**Verdict:** ✅ **Strong observability and security operations coverage**
 
 ---
 
@@ -309,7 +313,7 @@ resource "azurerm_cosmosdb_sql_role_assignment" "app_service_cosmos_contributor"
 - ✅ Storage soft delete (7-day retention)
 - ✅ Key Vault soft delete (90-day retention)
 
-**Verdict:** ✅ **Fully HIPAA-Aligned**
+**Verdict:** ✅ **Strong HIPAA-aligned technical safeguards**
 
 ---
 
@@ -387,13 +391,12 @@ The infrastructure includes several **bonus security features** not explicitly r
    - Cosmos DB data plane logs
    - WAF request logs
 
-5. ✅ **Automated Public Access Disabling**
-   - `null_resource.disable_public_access` script
-   - Idempotent with retry logic
-   - Validation checks
-   - Restores HIPAA compliance after deployment
+5. ✅ **Manual Post-Deployment Hardening**
+   - Public access is disabled manually after deployment (Storage, Key Vault, Cosmos DB)
+   - See `infra/docs/shared/HIPAA_COMPLIANCE_MANUAL_CHECKLIST.md`
+   - Terraform is configured to avoid reverting these manual settings where applicable (`lifecycle.ignore_changes`)
 
-**Verdict:** ✅ **Exceeds HIPAA Requirements**
+**Verdict:** ✅ **Strong technical safeguards implemented**
 
 ---
 
@@ -401,9 +404,9 @@ The infrastructure includes several **bonus security features** not explicitly r
 
 ### Potential Issues and Recommendations
 
-#### 1. ⚠️ CRITICAL: Cosmos DB Authentication (Already Covered Above)
-**Priority:** P0 - Blocker
-**Status:** Must fix before production deployment
+#### 1. ℹ️ Cosmos DB Authentication Guardrail (Resolved)
+**Priority:** P2 - Guardrail
+**Status:** Resolved in current code; treat as a regression check before changes
 
 ---
 
@@ -507,29 +510,17 @@ blob_properties {
 
 ---
 
-#### 6. ✅ Public Access Disabling Strategy
-**File:** `infra/main.tf` (Lines 825-1150)
+#### 6. ✅ Public Access Hardening Strategy (Manual)
 
 **Current Approach:**
-- Resources created with public access enabled
-- `null_resource.disable_public_access` script runs after all resources exist
-- Script disables public access on Storage, Key Vault, Cosmos DB
-- Includes retry logic, validation, and idempotency
+- Deploy infrastructure via Terraform.
+- Perform manual hardening steps to disable public network access (Storage, Key Vault, Cosmos DB) following:
+  - `infra/docs/shared/HIPAA_COMPLIANCE_MANUAL_CHECKLIST.md`
+- Prevent Terraform from reverting approved manual hardening where applicable via `lifecycle.ignore_changes` (Key Vault, Cosmos DB, App Service restrictions).
 
-**Analysis:**
-- ✅ This is a **pragmatic workaround** for Terraform limitations
-- ✅ Script includes comprehensive error handling
-- ✅ Idempotent (safe to run multiple times)
-- ✅ Validation ensures HIPAA compliance
-- ✅ Controlled by `disable_public_access_automatically` variable
-
-**Recommendation:**
-- ✅ **This approach is acceptable for production**
-- Set `disable_public_access_automatically = true` in production
-- The 2-phase approach (public → private) is necessary because:
-  1. Terraform needs to create containers/secrets (requires data plane access)
-  2. Private endpoint DNS resolution takes time to propagate
-  3. RBAC assignments need time to activate
+**Important Note (Terraform from local machine):**
+- Some resources (notably Storage containers) may require data-plane access during `plan/apply`. If public access is disabled and you run Terraform from outside the VNet, you can hit 403 errors.
+- If you need Terraform to manage data-plane resources, run Terraform from inside the VNet (jump VM/runner) or stop managing those specific data-plane resources via Terraform.
 
 ---
 
@@ -661,7 +652,7 @@ cosmos_free_tier_enabled = true
 
 ### Before First Deployment
 
-- [ ] **FIX CRITICAL ISSUE:** Set `local_authentication_disabled = false` in Cosmos DB module
+- [ ] **VERIFY:** `local_authentication_disabled = false` in Cosmos DB module
 - [ ] Review and populate all environment tfvars files
 - [ ] Ensure Azure CLI is installed and authenticated
 - [ ] Verify subscription has necessary resource providers registered:
@@ -683,7 +674,7 @@ cosmos_free_tier_enabled = true
 - [ ] Set `app_service_sku_name = "P1v3"` or higher
 - [ ] Set `app_service_always_on = true`
 - [ ] Set `app_service_enable_ip_restrictions = true`
-- [ ] Set `disable_public_access_automatically = true`
+- [ ] Complete post-deployment hardening checklist (disable public access + verify private access)
 - [ ] Set `cosmos_free_tier_enabled = false`
 - [ ] Set `key_vault_purge_protection_enabled = true`
 - [ ] Set `frontdoor_sku_name = "Premium_AzureFrontDoor"` (for OWASP rules)
@@ -762,12 +753,12 @@ cosmos_free_tier_enabled = true
 
 ### Conclusion
 
-This infrastructure is **well-designed and nearly production-ready**. The architecture fully aligns with HIPAA requirements and implements comprehensive security controls. The **only blocker** is the Cosmos DB authentication configuration, which can be fixed by changing one line of code.
+This infrastructure is **well-designed and nearly production-ready**. The architecture implements strong HIPAA-aligned technical safeguards. Validate operational procedures (access reviews, incident response, audit processes) separately.
 
-Once the critical issue is resolved and production configuration is applied, this infrastructure will provide a **secure, scalable, HIPAA-compliant foundation** for the Agilis Dental platform.
+Once production configuration is applied and the post-deployment hardening checklist is completed, this infrastructure provides a **secure, scalable foundation** for the Agilis Dental platform.
 
 ### Recommendation
-**PROCEED with deployment** after fixing the Cosmos DB authentication issue. The infrastructure is solid and well-implemented.
+**PROCEED with deployment** after completing the readiness + post-deployment hardening checklists and validating connectivity/security controls.
 
 ---
 

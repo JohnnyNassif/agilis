@@ -160,11 +160,16 @@ az monitor diagnostic-settings list --resource-group $RG \
   -o table
 ```
 
-**Expected**: Should see diagnostic settings for:
-- App Service
+**Expected**: Should see diagnostic settings for (at minimum):
+- App Services (main + telehealth + whiteboard)
+- Static Web Apps (main + telehealth + whiteboard)
 - Cosmos DB
-- Storage Account
-- Key Vault
+- Storage Account (metrics) + Blob service (read/write/delete logs)
+- Key Vault (AuditEvent)
+- Front Door (access/health/WAF logs)
+- NSGs (event + rule counter)
+- Bastion (audit logs + metrics)
+- Application Insights (export to Log Analytics)
 
 ---
 
@@ -235,7 +240,7 @@ az storage account show \
   --query "{PublicAccess:publicNetworkAccess, NetworkRules:networkRuleSet}" -o json
 ```
 
-**Note**: Currently `publicNetworkAccess` will be `Enabled` (will be disabled later)
+**Note**: `publicNetworkAccess` may still be `Enabled` until you complete the post-deployment hardening checklist.
 
 ---
 
@@ -252,7 +257,7 @@ az cosmosdb show \
   --query "{PublicAccess:publicNetworkAccess, VNetFilter:isVirtualNetworkFilterEnabled, Backup:backupPolicy}" -o json
 ```
 
-**Note**: Currently `publicNetworkAccess` will be `Enabled` (will be disabled later)
+**Note**: `publicNetworkAccess` may still be `Enabled` until you complete the post-deployment hardening checklist.
 
 ---
 
@@ -262,43 +267,44 @@ az cosmosdb show \
 ✅ **Infrastructure deployed successfully**
 ⚠️ **Public access is still ENABLED** for Storage Account, Cosmos DB, and Key Vault
 
-### When Ready to Disable Public Access:
+### When Ready to Disable Public Access
 
-1. **Option A: Use the Terraform Script** (Recommended)
-   - Uncomment the `disable_public_access` script in `infra/main.tf` (lines 355-572)
-   - Run: `terraform apply -var-file="dev.auto.tfvars" -auto-approve`
+Follow `infra/docs/shared/HIPAA_COMPLIANCE_MANUAL_CHECKLIST.md`.
 
-2. **Option B: Manual Disable via Azure CLI**
-   ```bash
-   RG=$(terraform output -raw resource_group_name)
-   STORAGE=$(terraform output -raw storage_account_name)
-   VAULT=$(terraform output -raw key_vault_name)
-   COSMOS=$(terraform output -raw cosmos_account_name)
-   
-   # Disable Storage Account public access
-   az storage account update \
-     --name $STORAGE \
-     --resource-group $RG \
-     --public-network-access Disabled
-   
-   # Disable Key Vault public access
-   az keyvault update \
-     --name $VAULT \
-     --resource-group $RG \
-     --public-network-access Disabled
-   
-   # Set Key Vault network rule to Deny
-   az keyvault network-rule set \
-     --name $VAULT \
-     --resource-group $RG \
-     --default-action Deny
-   
-   # Disable Cosmos DB public access (via Terraform)
-   # Edit infra/modules/cosmos_mongo/main.tf:
-   # Change: public_network_access_enabled = true
-   # To:     public_network_access_enabled = false
-   # Then run: terraform apply -var-file="dev.auto.tfvars"
-   ```
+If you prefer CLI (instead of portal), you can disable public access manually:
+
+```bash
+RG=$(terraform output -raw resource_group_name)
+STORAGE=$(terraform output -raw storage_account_name)
+VAULT=$(terraform output -raw key_vault_name)
+COSMOS=$(terraform output -raw cosmos_account_name)
+
+# Disable Storage Account public access
+az storage account update \
+  --name $STORAGE \
+  --resource-group $RG \
+  --public-network-access Disabled
+
+# Disable Key Vault public access
+az keyvault update \
+  --name $VAULT \
+  --resource-group $RG \
+  --public-network-access Disabled
+
+# Set Key Vault network rule to Deny
+az keyvault network-rule set \
+  --name $VAULT \
+  --resource-group $RG \
+  --default-action Deny
+
+# Disable Cosmos DB public access
+az cosmosdb update \
+  --name $COSMOS \
+  --resource-group $RG \
+  --public-network-access Disabled
+```
+
+**Important:** After disabling public access, Terraform runs from a local machine may fail on some data-plane resources (e.g., Storage containers). If you must manage data-plane resources via Terraform, run Terraform from inside the VNet (jump VM/runner), or stop managing those data-plane resources with Terraform.
 
 3. **Enable Infrastructure Encryption** (HIPAA Requirement)
    ```bash

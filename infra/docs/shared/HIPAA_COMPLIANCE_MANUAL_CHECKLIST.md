@@ -50,7 +50,12 @@ az afd profile show \
 
 ### Step 1.2: Configure Main Site IP Restrictions
 
-1. Go to **App Services** → `app-<prefix>-prod-api`
+Repeat this section for **each backend App Service**:
+- `app-<prefix>-prod-api` (main backend)
+- `app-<prefix>-prod-api-white-board` (whiteboard backend)
+- `app-<prefix>-prod-api-telemed` (telehealth backend)
+
+1. Go to **App Services** → select the target backend
 2. Navigate to **Networking** → **Access Restrictions**
 3. Click **+ Add rule** for **Main site**
 
@@ -74,7 +79,7 @@ az afd profile show \
 **Alternative (Azure CLI):**
 ```bash
 RESOURCE_GROUP="rg-<prefix>-prod-core"
-APP_SERVICE="app-<prefix>-prod-api"
+APP_SERVICE="<ONE_OF: app-<prefix>-prod-api | app-<prefix>-prod-api-white-board | app-<prefix>-prod-api-telemed>"
 FRONTDOOR_ID="<Front-Door-ID-from-Step-1.1>"
 
 # Add DenyAll rule
@@ -148,10 +153,16 @@ az webapp config access-restriction add \
 ### Step 1.4: Verify App Service IP Restrictions
 
 **Verification:**
-1. Try accessing `https://app-<prefix>-prod-api.azurewebsites.net` directly
+1. Try accessing each backend directly (should be blocked):
+   - `https://app-<prefix>-prod-api.azurewebsites.net`
+   - `https://app-<prefix>-prod-api-white-board.azurewebsites.net`
+   - `https://app-<prefix>-prod-api-telemed.azurewebsites.net`
 2. **Expected:** Connection refused or timeout (direct access blocked)
-3. Access via Front Door URL: `https://fe-<prefix>-prod.azurefd.net`
-4. **Expected:** Application loads successfully
+3. Access via Front Door URL (should work):
+   - `https://fe-<prefix>-prod.azurefd.net/api/health`
+   - `https://fe-<prefix>-prod.azurefd.net/api/whiteboard/health`
+   - `https://fe-<prefix>-prod.azurefd.net/api/telehealth/health`
+4. **Expected:** All return success responses
 
 **Alternative (Azure CLI):**
 ```bash

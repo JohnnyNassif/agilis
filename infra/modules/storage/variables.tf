@@ -47,6 +47,12 @@ variable "container_names" {
   default     = ["phi-files"]
 }
 
+variable "manage_containers" {
+  description = "Whether Terraform should manage (create/read/update) blob containers. Set false to stop Terraform from managing containers (useful when data-plane access is restricted)."
+  type        = bool
+  default     = true
+}
+
 variable "enable_infrastructure_encryption" {
   description = "Enable infrastructure encryption (double encryption) for Storage Account. Required for HIPAA compliance. When enabled, data is encrypted twice - once at the service level and once at the infrastructure level."
   type        = bool

@@ -484,8 +484,8 @@ Create separate Front Doors for each app:
 
 ## 📚 Additional Resources
 
-- **Frontend Deployment:** See `FRONTEND_DEPLOYMENT_GUIDE.md`
-- **Storage Lifecycle:** See `STORAGE_LIFECYCLE_POLICY.md`
+- **Frontend Deployment:** See `../client/FRONTEND_DEPLOYMENT_GUIDE.md`
+- **Storage Lifecycle:** See `../shared/STORAGE_LIFECYCLE_POLICY.md`
 - **White-Label Setup:** See main review documentation
 
 ---

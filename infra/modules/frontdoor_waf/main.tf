@@ -1,13 +1,15 @@
 locals {
   frontdoor_name = format("fd-%s", var.name_prefix)
   # WAF policy name must start with letter and contain only letters/numbers (no hyphens)
-  waf_policy_name        = replace(format("waf%s", var.name_prefix), "-", "")
-  frontend_endpoint_name = format("fe-%s", var.name_prefix)
-  backend_pool_name      = format("be-%s-backend", var.name_prefix)
-  frontend_pool_name     = format("be-%s-frontend", var.name_prefix)
-  backend_route_name     = format("rr-%s-backend", var.name_prefix)
-  frontend_route_name    = format("rr-%s-frontend", var.name_prefix)
-  health_probe_name      = format("hp-%s", var.name_prefix)
+  waf_policy_name               = replace(format("waf%s", var.name_prefix), "-", "")
+  frontend_endpoint_name        = format("fe-%s", var.name_prefix)
+  backend_pool_name             = format("be-%s-backend", var.name_prefix)
+  frontend_pool_name            = format("be-%s-frontend", var.name_prefix)
+  backend_route_name            = format("rr-%s-backend", var.name_prefix)
+  backend_whiteboard_route_name = format("rr-%s-backend-whiteboard", var.name_prefix)
+  backend_telehealth_route_name = format("rr-%s-backend-telehealth", var.name_prefix)
+  frontend_route_name           = format("rr-%s-frontend", var.name_prefix)
+  health_probe_name             = format("hp-%s", var.name_prefix)
 }
 
 # Azure Front Door Profile
@@ -132,6 +134,38 @@ resource "azurerm_cdn_frontdoor_origin" "app_service" {
   certificate_name_check_enabled = true
 }
 
+# Optional Backend Origin (Whiteboard App Service)
+resource "azurerm_cdn_frontdoor_origin" "app_service_whiteboard" {
+  count                         = var.whiteboard_app_service_host_name != null ? 1 : 0
+  name                          = format("origin-%s-app-whiteboard", var.name_prefix)
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.backend.id
+  enabled                       = true
+  host_name                     = var.whiteboard_app_service_host_name
+  http_port                     = 80
+  https_port                    = 443
+  origin_host_header            = var.whiteboard_app_service_host_name
+  priority                      = 1
+  weight                        = 1000
+
+  certificate_name_check_enabled = true
+}
+
+# Optional Backend Origin (Telehealth App Service)
+resource "azurerm_cdn_frontdoor_origin" "app_service_telehealth" {
+  count                         = var.telehealth_app_service_host_name != null ? 1 : 0
+  name                          = format("origin-%s-app-telehealth", var.name_prefix)
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.backend.id
+  enabled                       = true
+  host_name                     = var.telehealth_app_service_host_name
+  http_port                     = 80
+  https_port                    = 443
+  origin_host_header            = var.telehealth_app_service_host_name
+  priority                      = 1
+  weight                        = 1000
+
+  certificate_name_check_enabled = true
+}
+
 # Frontend Origin Group (Static Web App) - Only created if Static Web App frontend is enabled
 resource "azurerm_cdn_frontdoor_origin_group" "frontend" {
   count                    = var.enable_static_web_app_frontend ? 1 : 0
@@ -178,6 +212,92 @@ resource "azurerm_cdn_frontdoor_route" "backend" {
 
   # Link custom domain if provided
   cdn_frontdoor_custom_domain_ids = var.custom_domain_name != null ? [azurerm_cdn_frontdoor_custom_domain.this[0].id] : []
+}
+
+# Optional Backend Routing Rule (/api/whiteboard/* → Whiteboard App Service)
+resource "azurerm_cdn_frontdoor_route" "backend_whiteboard" {
+  count                         = var.whiteboard_app_service_host_name != null ? 1 : 0
+  name                          = local.backend_whiteboard_route_name
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.backend.id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.app_service_whiteboard[0].id]
+  cdn_frontdoor_rule_set_ids    = [azurerm_cdn_frontdoor_rule_set.backend_whiteboard[0].id]
+  enabled                       = true
+
+  forwarding_protocol    = var.forwarding_protocol # HttpOnly, HttpsOnly, or MatchRequest
+  https_redirect_enabled = var.https_redirect_enabled
+  patterns_to_match      = ["/api/whiteboard/*"]
+  supported_protocols    = var.supported_protocols # ["Http", "Https"]
+
+  # Link custom domain if provided
+  cdn_frontdoor_custom_domain_ids = var.custom_domain_name != null ? [azurerm_cdn_frontdoor_custom_domain.this[0].id] : []
+}
+
+# Optional Backend Routing Rule (/api/telehealth/* → Telehealth App Service)
+resource "azurerm_cdn_frontdoor_route" "backend_telehealth" {
+  count                         = var.telehealth_app_service_host_name != null ? 1 : 0
+  name                          = local.backend_telehealth_route_name
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.backend.id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.app_service_telehealth[0].id]
+  cdn_frontdoor_rule_set_ids    = [azurerm_cdn_frontdoor_rule_set.backend_telehealth[0].id]
+  enabled                       = true
+
+  forwarding_protocol    = var.forwarding_protocol # HttpOnly, HttpsOnly, or MatchRequest
+  https_redirect_enabled = var.https_redirect_enabled
+  patterns_to_match      = ["/api/telehealth/*"]
+  supported_protocols    = var.supported_protocols # ["Http", "Https"]
+
+  # Link custom domain if provided
+  cdn_frontdoor_custom_domain_ids = var.custom_domain_name != null ? [azurerm_cdn_frontdoor_custom_domain.this[0].id] : []
+}
+
+# ============================================================================
+# Route-specific rewrite rule sets
+# ============================================================================
+
+# Rewrite /api/whiteboard/* -> /api/* before forwarding to the whiteboard origin
+resource "azurerm_cdn_frontdoor_rule_set" "backend_whiteboard" {
+  count                    = var.whiteboard_app_service_host_name != null ? 1 : 0
+  name                     = format("rs%swhiteboardrewrite", replace(var.name_prefix, "-", ""))
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+}
+
+resource "azurerm_cdn_frontdoor_rule" "backend_whiteboard_rewrite" {
+  count                     = var.whiteboard_app_service_host_name != null ? 1 : 0
+  name                      = format("rw%swhiteboard", replace(var.name_prefix, "-", ""))
+  cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.backend_whiteboard[0].id
+  order                     = 1
+
+  actions {
+    url_rewrite_action {
+      source_pattern          = "/api/whiteboard/*"
+      destination             = "/api/"
+      preserve_unmatched_path = true
+    }
+  }
+}
+
+# Rewrite /api/telehealth/* -> /api/* before forwarding to the telehealth origin
+resource "azurerm_cdn_frontdoor_rule_set" "backend_telehealth" {
+  count                    = var.telehealth_app_service_host_name != null ? 1 : 0
+  name                     = format("rs%stelehealthrewrite", replace(var.name_prefix, "-", ""))
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.this.id
+}
+
+resource "azurerm_cdn_frontdoor_rule" "backend_telehealth_rewrite" {
+  count                     = var.telehealth_app_service_host_name != null ? 1 : 0
+  name                      = format("rw%stelehealth", replace(var.name_prefix, "-", ""))
+  cdn_frontdoor_rule_set_id = azurerm_cdn_frontdoor_rule_set.backend_telehealth[0].id
+  order                     = 1
+
+  actions {
+    url_rewrite_action {
+      source_pattern          = "/api/telehealth/*"
+      destination             = "/api/"
+      preserve_unmatched_path = true
+    }
+  }
 }
 
 # Frontend Routing Rule (/* → Static Web App) - Only created if Static Web App frontend is enabled

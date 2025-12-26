@@ -244,6 +244,12 @@ variable "storage_container_names" {
   default     = ["phi-files"]
 }
 
+variable "storage_manage_containers" {
+  description = "Whether Terraform should manage (create/read/update) storage blob containers. Set false to avoid data-plane access during plan/apply."
+  type        = bool
+  default     = true
+}
+
 variable "storage_enable_infrastructure_encryption" {
   description = "Enable infrastructure encryption (double encryption) for Storage Account. Required for HIPAA compliance. When enabled, data is encrypted twice - once at the service level and once at the infrastructure level."
   type        = bool
@@ -266,6 +272,28 @@ variable "archive_after_days" {
   description = "Number of days before moving PHI blobs to an archive tier."
   type        = number
   default     = 30
+}
+
+variable "enable_nsg_flow_logs" {
+  description = "Enable NSG Flow Logs (Network Watcher) for NSGs to support network audit trails and NSG/Sentinel analytics."
+  type        = bool
+  default     = false
+}
+
+variable "nsg_flow_logs_retention_days" {
+  description = "Retention in days for NSG Flow Logs stored in the storage account."
+  type        = number
+  default     = 30
+}
+
+variable "nsg_flow_logs_traffic_analytics_interval_minutes" {
+  description = "Traffic Analytics processing interval in minutes for NSG Flow Logs (10 or 60)."
+  type        = number
+  default     = 10
+  validation {
+    condition     = contains([10, 60], var.nsg_flow_logs_traffic_analytics_interval_minutes)
+    error_message = "Traffic Analytics interval must be 10 or 60 minutes."
+  }
 }
 
 variable "key_vault_sku_name" {

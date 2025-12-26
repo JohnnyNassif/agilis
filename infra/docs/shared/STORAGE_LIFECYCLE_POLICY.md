@@ -21,24 +21,7 @@ resource "azurerm_storage_management_policy" "phi_lifecycle"
 
 ## 🎯 Lifecycle Rules
 
-### Rule 1: Cool → Archive (After 1 Year)
-
-**Trigger:** Files in **Cool tier** that haven't been modified for **365 days** (1 year)
-**Action:** Automatically move to **Archive tier**
-
-```
-Example Timeline:
-├─ Day 0: Backend app moves file from Hot → Cool
-├─ Day 365: Azure automatically moves Cool → Archive
-└─ Result: Long-term storage at lowest cost
-```
-
-**Purpose:**
-- Optimize storage costs for old PHI files
-- Files in Cool tier for 1+ year are rarely accessed
-- Archive tier is 90% cheaper than Hot tier
-
-### Rule 2: HIPAA Retention (Delete After 7 Years)
+### Rule 1: HIPAA Retention (Delete After 7 Years)
 
 **Trigger:** Files that haven't been modified for **2,555 days** (7 years)
 **Action:** Automatically delete
@@ -62,7 +45,7 @@ Example Timeline:
 - ✅ Based on **last modification date**, not creation date
 - ✅ If file is updated, the 7-year clock restarts
 
-### Rule 3: Snapshot Cleanup (After 90 Days)
+### Rule 2: Snapshot Cleanup (After 90 Days)
 
 **Trigger:** Snapshots older than **90 days**
 **Action:** Automatically delete
@@ -155,8 +138,8 @@ Day 2555 (7 years): Azure automatically deletes
 **Breakdown with Lifecycle:**
 - Year 1: Hot tier (varies by backend) → ~$100-150
 - Years 1-2: Cool tier (365 days) → ~$120
-- Years 2-7: Archive tier (5 years) → ~$200-250
-- **Total: ~$400-500**
+- Years 2-7: Cool tier (remaining retention window) → (varies)
+- **Total:** varies by tiering strategy; retention enforcement + snapshot cleanup are the key controls
 
 ---
 
@@ -176,18 +159,16 @@ Last Modified Date = Most recent of:
 └─ Tier change does NOT reset this date ✅
 ```
 
-**Important:** Changing tier (Hot → Cool → Archive) does **NOT** reset the modification date!
+**Important:** Changing tier (Hot → Cool) does **NOT** reset the modification date!
 - If file uploaded on Jan 1, 2024
 - Moved to Cool on Apr 1, 2024
-- Archive trigger is still Jan 1, 2025 (365 days from original upload)
+- Deletion trigger is still based on the original upload/last modification date
 
 ### Tier Transitions
 ```
-Cool → Archive transition:
-├─ File must be in Cool tier
-├─ File must have 365+ days since last modification
-├─ Happens automatically overnight
-└─ No data movement (just metadata change)
+Hot → Cool transition:
+├─ Handled by backend application (business logic)
+└─ No automatic archive transition is configured
 ```
 
 ---
@@ -208,9 +189,6 @@ filters {
 
 actions {
   base_blob {
-    # Cool → Archive: 365 days
-    tier_to_archive_after_days_since_modification_greater_than = 365
-    
     # Delete: 2555 days (7 years)
     delete_after_days_since_modification_greater_than = 2555
   }
@@ -227,14 +205,13 @@ actions {
 ## ✅ Compliance & Best Practices
 
 ### HIPAA Compliance
-- ✅ **7-year retention** exceeds HIPAA minimum (6 years)
+- ✅ **7-year retention** exceeds an often-cited HIPAA documentation retention minimum (6 years)
 - ✅ **Automatic enforcement** prevents human error
 - ✅ **Audit trail** via Azure Activity Logs (tier changes logged)
 - ✅ **Secure deletion** (Azure cryptographically erases data)
 
 ### Best Practices Followed
 - ✅ **Application controls Hot → Cool** (business logic)
-- ✅ **Azure controls Cool → Archive** (age-based, cost optimization)
 - ✅ **Azure enforces retention** (automatic 7-year deletion)
 - ✅ **Snapshot management** (cost control)
 - ✅ **Incremental approach** (only manages what makes sense to automate)
@@ -289,10 +266,7 @@ az storage blob list \
 - ✅ Can add legal hold metadata to exempt specific files
 
 ### Archive Tier Access
-- ⚠️ Files in Archive are **offline** (not instantly accessible)
-- ⚠️ Must rehydrate before reading (1-15 hours)
-- ✅ Application should handle rehydration UX gracefully
-- ✅ Rehydration cost applies ($0.02/GB for High priority)
+- Not applicable to the current Terraform configuration: **no automatic Archive transition is configured**.
 
 ### Modification Date Behavior
 - ✅ Tier changes don't reset modification date
@@ -304,11 +278,8 @@ az storage blob list \
 
 ## 🔧 How to Modify Policy (If Needed)
 
-### Change Archive Transition (e.g., 2 years instead of 1)
-```terraform
-# In infra/modules/storage/main.tf
-tier_to_archive_after_days_since_modification_greater_than = 730  # 2 years
-```
+### Change Archive Transition
+Archive tier transitions are not configured by default. If you decide to add an archive policy later, update the storage lifecycle policy in `infra/modules/storage/main.tf` accordingly (subject to your replication/SKU constraints).
 
 ### Change Retention Period (e.g., 10 years)
 ```terraform
@@ -344,8 +315,8 @@ await blobClient.setMetadata({
 ```
 Then modify the lifecycle policy to exclude files with this tag.
 
-**Q: What happens if backend moves a file to Archive before 365 days?**
-**A:** Nothing! The policy only moves from Cool → Archive. If already in Archive, no action taken.
+**Q: What happens if backend changes tiers before retention delete?**
+**A:** Tier changes do not affect the retention delete trigger, which is based on last modification time.
 
 **Q: Can we restore deleted files?**
 **A:** No. After 7 years, deletion is permanent. Enable soft delete (currently 7 days) for short-term recovery only.
@@ -362,13 +333,11 @@ Then modify lifecycle policy to check metadata before deletion.
 ## 🎯 Summary
 
 **What's Automated:**
-- ✅ Cool → Archive (after 1 year)
 - ✅ Delete (after 7 years)
 - ✅ Snapshot cleanup (after 90 days)
 
 **What's Manual (Backend App):**
 - ✅ Hot → Cool (business logic driven)
-- ✅ Archive rehydration (when users need old files)
 - ✅ Snapshot creation (for version history)
 
 **Benefits:**

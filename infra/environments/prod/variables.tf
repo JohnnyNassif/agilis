@@ -44,6 +44,28 @@ variable "archive_after_days" {
   default     = 30
 }
 
+variable "enable_nsg_flow_logs" {
+  description = "Enable NSG Flow Logs (Network Watcher). NOTE: Azure blocks creation of new NSG flow logs starting 2025-06-30 due to retirement; use Virtual Network/Subnet flow logs instead."
+  type        = bool
+  default     = false
+}
+
+variable "nsg_flow_logs_retention_days" {
+  description = "Retention in days for NSG Flow Logs stored in the storage account."
+  type        = number
+  default     = 30
+}
+
+variable "nsg_flow_logs_traffic_analytics_interval_minutes" {
+  description = "Traffic Analytics processing interval in minutes for NSG Flow Logs (10 or 60)."
+  type        = number
+  default     = 10
+  validation {
+    condition     = contains([10, 60], var.nsg_flow_logs_traffic_analytics_interval_minutes)
+    error_message = "Traffic Analytics interval must be 10 or 60 minutes."
+  }
+}
+
 variable "app_service_sku_name" {
   description = "App Service plan SKU for prod."
   type        = string
@@ -108,6 +130,12 @@ variable "storage_container_names" {
   description = "Blob containers for prod."
   type        = list(string)
   default     = ["phi-files"]
+}
+
+variable "storage_manage_containers" {
+  description = "Whether Terraform should manage (create/read/update) storage blob containers in prod. Set false to stop Terraform from reading the container data-plane."
+  type        = bool
+  default     = true
 }
 
 variable "storage_enable_infrastructure_encryption" {
