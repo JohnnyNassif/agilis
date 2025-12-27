@@ -1,4 +1,4 @@
-# Microsoft Sentinel Guide (Client)
+# Microsoft Sentinel Guide
 
 This guide explains how to use **Microsoft Sentinel** for security monitoring: how to confirm it’s working, how to triage incidents, and how to run basic investigations.
 
@@ -135,6 +135,8 @@ When you escalate a Sentinel-related issue, include:
   - relevant Logs query results
 
 Use `INCIDENT_RESPONSE_AND_SECURITY_EVENTS.md` for the standard escalation package.
+
+
 
 
 

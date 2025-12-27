@@ -1,4 +1,4 @@
-# Incident Response and Security Events Playbook (Client)
+# Incident Response and Security Events Playbook
 
 This playbook explains how to triage outages and security events, what to check in Azure, and what information to send to the Agilis operator for fast remediation.
 
@@ -126,6 +126,8 @@ Do **not**:
 - Record timeline: detection → mitigation → resolution
 - Document root cause (app vs infra) and follow-up actions
 - Add/adjust monitoring alerts if the incident was not detected quickly
+
+
 
 
 

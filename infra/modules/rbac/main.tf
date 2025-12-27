@@ -10,6 +10,16 @@ resource "azurerm_role_assignment" "app_service_key_vault_secrets_user" {
   principal_id         = var.app_service_principal_id
 }
 
+# Grant App Service managed identity access to Storage Account blobs (read/write at storage account scope)
+# This enables Managed Identity + RBAC access without using storage account keys.
+resource "azurerm_role_assignment" "app_service_storage_blob_data_contributor" {
+  count = (var.app_service_principal_id != null && var.storage_account_id != null) ? 1 : 0
+
+  scope                = var.storage_account_id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = var.app_service_principal_id
+}
+
 # ============================================================================
 # Bastion VM Managed Identity RBAC Assignments
 # ============================================================================

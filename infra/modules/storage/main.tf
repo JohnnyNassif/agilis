@@ -12,17 +12,21 @@ resource "random_string" "suffix" {
   special = false
 }
 
-# Create Storage Account with public access enabled
-# NOTE: Public access will remain enabled until manually disabled after all HIPAA resources are created
+# Storage account (secure-by-default).
+# Some security toggles may be further hardened post-deploy; we selectively ignore those diffs to avoid drift wars.
 resource "azurerm_storage_account" "this" {
-  name                          = local.account_name
-  resource_group_name           = var.resource_group_name
-  location                      = var.location
-  account_tier                  = var.account_tier
-  account_replication_type      = var.account_replication_type
-  account_kind                  = var.account_kind
-  min_tls_version               = "TLS1_2"
-  public_network_access_enabled = true # Enabled - will be disabled manually later for HIPAA compliance
+  name                     = local.account_name
+  resource_group_name      = var.resource_group_name
+  location                 = var.location
+  account_tier             = var.account_tier
+  account_replication_type = var.account_replication_type
+  account_kind             = var.account_kind
+  min_tls_version          = "TLS1_2"
+  # HIPAA baseline: no public network, no anonymous blob access, no shared key (account key) auth.
+  public_network_access_enabled   = false
+  allow_nested_items_to_be_public = false
+  shared_access_key_enabled       = false
+  https_traffic_only_enabled      = true
 
   # Infrastructure Encryption (Double Encryption) - HIPAA Requirement
   # Enables encryption at the infrastructure level in addition to default encryption at rest
@@ -49,19 +53,24 @@ resource "azurerm_storage_account" "this" {
   }
 
   lifecycle {
-    # Ignore changes to public_network_access_enabled after the disable_public_access script runs
-    # This prevents Terraform from reverting HIPAA compliance settings
-    ignore_changes = [public_network_access_enabled]
+    # HIPAA hardening may tweak these settings post-deploy (or temporarily relax them for Terraform operations).
+    # Do not let Terraform revert manual changes.
+    ignore_changes = [
+      public_network_access_enabled,
+      allow_nested_items_to_be_public,
+      shared_access_key_enabled,
+      https_traffic_only_enabled,
+    ]
   }
 }
 
-# Set network rules after containers are created
-# NOTE: Since public_network_access_enabled = true, we use Allow to permit Terraform access
-# When public access is disabled manually later, network rules should be changed to Deny for HIPAA compliance
+# Network rules (HIPAA baseline: default deny).
+# Note: container creation is a data-plane operation; when shared key is disabled and public access is off,
+# container provisioning should be done post-deploy from a private network path (or by the application).
 resource "azurerm_storage_account_network_rules" "this" {
   storage_account_id = azurerm_storage_account.this.id
 
-  default_action             = "Allow" # Allow - will be changed to Deny manually later when public access is disabled
+  default_action             = "Deny"
   bypass                     = ["AzureServices"]
   ip_rules                   = []
   virtual_network_subnet_ids = []
@@ -71,14 +80,18 @@ resource "azurerm_storage_account_network_rules" "this" {
   ]
 
   lifecycle {
-    # Ignore changes to default_action after the disable_public_access script runs
-    # This prevents Terraform from reverting HIPAA compliance settings
-    ignore_changes = [default_action]
+    # Network rules are commonly hardened/tuned post-deploy. Avoid Terraform reverting them.
+    ignore_changes = [
+      default_action,
+      bypass,
+      ip_rules,
+      virtual_network_subnet_ids,
+    ]
   }
 }
 
-# Create containers using Terraform's native resources
-# Storage account has public access enabled, so containers can be created and managed via Terraform
+# Optional container management (disabled by default).
+# If enabled, Terraform must have a valid data-plane access path to the account.
 resource "azurerm_storage_container" "this" {
   for_each              = var.manage_containers ? toset(var.container_names) : toset([])
   name                  = each.value

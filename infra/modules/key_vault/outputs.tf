@@ -29,16 +29,6 @@ output "cosmos_connection_string_secret_name" {
   value       = var.cosmos_connection_string_secret_name
 }
 
-output "storage_account_key_secret_name" {
-  description = "Name of the Storage account key secret."
-  value       = var.storage_account_key_secret_name
-}
-
-output "storage_account_name_secret_name" {
-  description = "Name of the Storage account name secret."
-  value       = var.storage_account_name_secret_name
-}
-
 # RBAC assignment outputs for secrets to depend on
 output "terraform_secrets_officer_assignment_id" {
   description = "ID of the Terraform SPN role assignment (for secrets to depend on)."

@@ -1,4 +1,4 @@
-# Jump Box (Bastion VM) Operations Guide (Client)
+# Jump Box (Bastion VM) Operations Guide
 
 This guide explains how to use the **Windows jump box** (accessed via **Azure Bastion**) to:
 - connect to the Storage Account using **Azure Storage Explorer**
@@ -63,12 +63,6 @@ $VAULT="<KEY_VAULT_NAME>"
 
 # Example: Cosmos connection string
 az keyvault secret show --vault-name $VAULT --name "cosmos-connection-string" --query value -o tsv
-
-# Example: Storage account name
-az keyvault secret show --vault-name $VAULT --name "storage-account-name" --query value -o tsv
-
-# Example: Storage account key (if used)
-az keyvault secret show --vault-name $VAULT --name "storage-account-key" --query value -o tsv
 ```
 
 ### B) Using Azure Portal (if allowed)
@@ -95,6 +89,8 @@ Key Vault may be restricted to private access; portal access depends on environm
 **If you cannot see the account:**
 - You may not have the necessary Azure RBAC role (e.g., Storage Blob Data Reader/Contributor)
 - Ask the Agilis operator to confirm your access level and scope
+
+**Note:** This environment is typically hardened to disable Storage **Shared Key** authentication. Use Azure AD sign-in (RBAC) in Storage Explorer (do not use account keys/connection strings).
 
 ---
 

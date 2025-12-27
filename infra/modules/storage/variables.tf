@@ -50,7 +50,7 @@ variable "container_names" {
 variable "manage_containers" {
   description = "Whether Terraform should manage (create/read/update) blob containers. Set false to stop Terraform from managing containers (useful when data-plane access is restricted)."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_infrastructure_encryption" {

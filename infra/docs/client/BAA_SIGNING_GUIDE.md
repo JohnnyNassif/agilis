@@ -1,4 +1,4 @@
-# HIPAA Business Associate Agreement (BAA) Signing Guide (Client)
+# HIPAA Business Associate Agreement (BAA) Signing Guide
 
 This document explains how to execute a HIPAA **Business Associate Agreement (BAA)** with Microsoft for Azure, and what the client should understand before signing.
 
@@ -84,6 +84,8 @@ The client should ensure the following are implemented and maintained:
 If the client needs a “signed document” version or is being asked by a counterparty for a separately executed BAA:
 - Engage Microsoft account representative and/or legal counsel.
 - Confirm whether the standard DPA/Product Terms satisfy the requirement for the client’s procurement/compliance process.
+
+
 
 
 

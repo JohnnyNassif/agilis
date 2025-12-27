@@ -247,7 +247,7 @@ variable "storage_container_names" {
 variable "storage_manage_containers" {
   description = "Whether Terraform should manage (create/read/update) storage blob containers. Set false to avoid data-plane access during plan/apply."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "storage_enable_infrastructure_encryption" {
@@ -318,18 +318,6 @@ variable "key_vault_cosmos_secret_name" {
   description = "Name of the secret in Key Vault for Cosmos connection string."
   type        = string
   default     = "cosmos-connection-string"
-}
-
-variable "key_vault_storage_key_secret_name" {
-  description = "Name of the secret in Key Vault for Storage account key."
-  type        = string
-  default     = "storage-account-key"
-}
-
-variable "key_vault_storage_name_secret_name" {
-  description = "Name of the secret in Key Vault for Storage account name."
-  type        = string
-  default     = "storage-account-name"
 }
 
 variable "terraform_principal_id" {

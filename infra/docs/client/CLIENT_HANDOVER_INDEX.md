@@ -50,4 +50,6 @@ These are more “reference” than “runbook”, but can be shared with client
 - `../shared/POST_DEPLOYMENT_CHECKLIST.md`
 - `../shared/HIPAA_COMPLIANCE_MANUAL_CHECKLIST.md`
 
+**Note:** Backend Storage access is **Managed Identity + RBAC** (no Storage account keys). See `BACKEND_APP_DEPLOYMENT_GUIDE.md` → “Storage access model (IMPORTANT)”.
+
 

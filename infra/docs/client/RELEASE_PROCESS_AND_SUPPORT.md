@@ -1,4 +1,4 @@
-# Release Process and Support (Client)
+# Release Process and Support
 
 This document explains how the client releases **frontend** and **backend** application code, how to verify a release, how to roll back, and what information to provide when escalating issues.
 
@@ -105,6 +105,8 @@ If possible, also include:
 - Authentication failures affecting all users
 - Suspected security incident (WAF spike, suspicious access patterns)
 - Loss of access to PHI-related resources or failures in key workflows (upload/download)
+
+
 
 
 

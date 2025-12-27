@@ -60,7 +60,16 @@ resource "azurerm_linux_web_app" "this" {
     # AzureRM may reflect this integration on the web app resource as `virtual_network_subnet_id`,
     # even though we don't set it here. Ignore that computed drift to avoid Terraform trying to
     # "unset" VNet integration during unrelated changes.
-    ignore_changes = [virtual_network_subnet_id]
+    # Additionally, ingress restrictions are hardened post-deploy (Front Door only, including SCM).
+    # This module intentionally does not manage access restrictions, so ignore drift to avoid
+    # Terraform deleting portal/CLI-configured rules.
+    ignore_changes = [
+      virtual_network_subnet_id,
+      site_config[0].ip_restriction,
+      site_config[0].scm_ip_restriction,
+      site_config[0].ip_restriction_default_action,
+      site_config[0].scm_ip_restriction_default_action,
+    ]
   }
 }
 

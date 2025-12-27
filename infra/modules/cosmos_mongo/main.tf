@@ -46,6 +46,12 @@ resource "azurerm_cosmosdb_account" "this" {
   }
 
   tags = var.tags
+
+  lifecycle {
+    # HIPAA hardening may disable public network access post-deploy.
+    # Do not let Terraform revert manual hardening.
+    ignore_changes = [public_network_access_enabled]
+  }
 }
 
 resource "azurerm_cosmosdb_mongo_database" "this" {

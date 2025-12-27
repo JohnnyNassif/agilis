@@ -64,18 +64,6 @@ variable "cosmos_connection_string_secret_name" {
   default     = "cosmos-connection-string"
 }
 
-variable "storage_account_key_secret_name" {
-  description = "Name of the secret in Key Vault for Storage account key (secrets are created in root module)."
-  type        = string
-  default     = "storage-account-key"
-}
-
-variable "storage_account_name_secret_name" {
-  description = "Name of the secret in Key Vault for Storage account name (secrets are created in root module)."
-  type        = string
-  default     = "storage-account-name"
-}
-
 variable "tags" {
   description = "Tags to apply to Key Vault resources."
   type        = map(string)

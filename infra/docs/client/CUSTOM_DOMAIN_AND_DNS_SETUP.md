@@ -1,4 +1,4 @@
-# Custom Domain and DNS Setup (Client)
+# Custom Domain and DNS Setup
 
 This guide explains how to connect your custom domain(s) (e.g., `portal.example.com`, `api.example.com`) to the Agilis platform.
 
@@ -29,7 +29,7 @@ Your platform uses Azure Front Door as the public entry point, so the recommende
 
 ---
 
-## Step 1 — DNS change request (client)
+## Step 1 — DNS change request
 
 The Agilis operator will provide the exact target hostnames/values. The client will create the required DNS record(s).
 
@@ -66,7 +66,7 @@ The operator will enable HTTPS on the custom domain and confirm:
 
 ---
 
-## Step 4 — Verification (client)
+## Step 4 — Verification
 
 Once DNS + binding is complete, verify:
 
@@ -101,6 +101,8 @@ Once DNS + binding is complete, verify:
   - custom domain name
   - Front Door hostname
   - failing URL(s) and timestamps
+
+
 
 
 

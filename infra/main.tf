@@ -10,6 +10,9 @@ locals {
   tags = merge(local.default_tags, var.tags)
 
   resource_group_name = format("rg-%s-core", local.name_prefix)
+
+  # Subscription resource ID for subscription-scoped resources (e.g., Activity Log diagnostic settings)
+  subscription_resource_id = startswith(var.subscription_id, "/subscriptions/") ? var.subscription_id : "/subscriptions/${var.subscription_id}"
 }
 
 module "resource_group" {
@@ -52,8 +55,6 @@ module "key_vault" {
   soft_delete_retention_days           = var.key_vault_soft_delete_retention_days
   purge_protection_enabled             = var.key_vault_purge_protection_enabled
   cosmos_connection_string_secret_name = var.key_vault_cosmos_secret_name
-  storage_account_key_secret_name      = var.key_vault_storage_key_secret_name
-  storage_account_name_secret_name     = var.key_vault_storage_name_secret_name
   tags                                 = local.tags
   # No secrets created here - they're created separately after Cosmos/Storage are ready
 }
@@ -99,26 +100,22 @@ module "storage" {
   tags                             = local.tags
 }
 
-# Data source to get Storage account key for Key Vault secrets
-data "azurerm_storage_account" "storage" {
-  name                = module.storage.storage_account_name
-  resource_group_name = module.resource_group.resource_group_name
-}
-
 # Construct Cosmos DB MongoDB connection string (needed for Key Vault secrets)
 locals {
   cosmos_connection_string = "mongodb://${module.cosmos_mongo.account_name}:${module.cosmos_mongo.primary_key}@${module.cosmos_mongo.account_name}.mongo.cosmos.azure.net:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@${module.cosmos_mongo.account_name}@"
 
   # Construct app_settings with Key Vault references and Application Insights.
-  # IMPORTANT: Only the main backend should receive secrets needed to access Cosmos/Storage.
+  # IMPORTANT: Only the main backend should receive secrets needed to access Cosmos.
   # Whiteboard/Telehealth backends are intentionally configured without these settings.
   app_service_app_settings_main_with_vault = merge(
     var.app_service_app_settings,
     {
       # Key Vault references (Key Vault is created before App Service)
       COSMOS_CONNECTION_STRING = "@Microsoft.KeyVault(SecretUri=${module.key_vault.key_vault_uri}secrets/${var.key_vault_cosmos_secret_name}/)"
-      STORAGE_ACCOUNT_KEY      = "@Microsoft.KeyVault(SecretUri=${module.key_vault.key_vault_uri}secrets/${var.key_vault_storage_key_secret_name}/)"
-      STORAGE_ACCOUNT_NAME     = "@Microsoft.KeyVault(SecretUri=${module.key_vault.key_vault_uri}secrets/${var.key_vault_storage_name_secret_name}/)"
+      # Storage access uses Managed Identity + RBAC (no storage account keys).
+      # Provide non-secret configuration directly.
+      STORAGE_ACCOUNT_NAME = module.storage.storage_account_name
+      STORAGE_ACCOUNT_URL  = module.storage.primary_blob_endpoint
       # Application Insights (Monitoring is created before App Service)
       APPINSIGHTS_INSTRUMENTATIONKEY        = module.monitoring.application_insights_instrumentation_key
       APPLICATIONINSIGHTS_CONNECTION_STRING = module.monitoring.application_insights_connection_string
@@ -131,7 +128,7 @@ locals {
     {
       for k, v in var.app_service_app_settings :
       k => v
-      if !contains(["COSMOS_CONNECTION_STRING", "STORAGE_ACCOUNT_KEY", "STORAGE_ACCOUNT_NAME", "STORAGE_ACCOUNT_URL"], k)
+      if !contains(["COSMOS_CONNECTION_STRING", "STORAGE_ACCOUNT_NAME", "STORAGE_ACCOUNT_URL"], k)
     },
     {
       APPINSIGHTS_INSTRUMENTATIONKEY        = module.monitoring.application_insights_instrumentation_key
@@ -152,28 +149,6 @@ resource "azurerm_key_vault_secret" "cosmos_connection_string" {
 
   depends_on = [
     module.cosmos_mongo,
-    module.storage,
-    module.key_vault
-  ]
-}
-
-resource "azurerm_key_vault_secret" "storage_account_key" {
-  name         = var.key_vault_storage_key_secret_name
-  value        = data.azurerm_storage_account.storage.primary_access_key
-  key_vault_id = module.key_vault.key_vault_id
-
-  depends_on = [
-    module.storage,
-    module.key_vault
-  ]
-}
-
-resource "azurerm_key_vault_secret" "storage_account_name" {
-  name         = var.key_vault_storage_name_secret_name
-  value        = module.storage.storage_account_name
-  key_vault_id = module.key_vault.key_vault_id
-
-  depends_on = [
     module.storage,
     module.key_vault
   ]
@@ -216,7 +191,7 @@ module "app_service" {
   connection_strings        = var.app_service_connection_strings
   subnet_id                 = module.network.app_subnet_id
   node_version              = var.app_service_node_version
-  tags                      = local.tags
+  tags                      = merge(local.tags, { "hidden-link: /app-insights-resource-id" = module.monitoring.application_insights_id })
 
   depends_on = [
     module.key_vault, # Key Vault must exist for app_settings references
@@ -239,7 +214,7 @@ module "app_service_whiteboard" {
   connection_strings        = []
   subnet_id                 = module.network.app_subnet_id
   node_version              = var.app_service_node_version
-  tags                      = merge(local.tags, { component = "whiteboard-backend" })
+  tags                      = merge(local.tags, { component = "whiteboard-backend", "hidden-link: /app-insights-resource-id" = module.monitoring.application_insights_id })
 
   depends_on = [
     module.key_vault,
@@ -262,7 +237,7 @@ module "app_service_telehealth" {
   connection_strings        = []
   subnet_id                 = module.network.app_subnet_id
   node_version              = var.app_service_node_version
-  tags                      = merge(local.tags, { component = "telehealth-backend" })
+  tags                      = merge(local.tags, { component = "telehealth-backend", "hidden-link: /app-insights-resource-id" = module.monitoring.application_insights_id })
 
   depends_on = [
     module.key_vault,
@@ -316,6 +291,51 @@ module "static_web_app_telehealth" {
 
 # Update Monitoring diagnostic settings after all resources are created
 # Application Insights and Log Analytics are created independently, but diagnostic settings need resource IDs
+#
+# Subscription Activity Log → Log Analytics (control-plane auditability)
+# This ensures the AzureActivity table is populated for administrative/audit trail requirements.
+resource "azurerm_monitor_diagnostic_setting" "subscription_activity_log" {
+  name                       = format("diag-%s-subscription-activity", local.name_prefix)
+  target_resource_id         = local.subscription_resource_id
+  log_analytics_workspace_id = module.monitoring.log_analytics_workspace_id
+
+  enabled_log {
+    category = "Administrative"
+  }
+
+  enabled_log {
+    category = "Security"
+  }
+
+  enabled_log {
+    category = "ServiceHealth"
+  }
+
+  enabled_log {
+    category = "Alert"
+  }
+
+  enabled_log {
+    category = "Recommendation"
+  }
+
+  enabled_log {
+    category = "Policy"
+  }
+
+  enabled_log {
+    category = "Autoscale"
+  }
+
+  enabled_log {
+    category = "ResourceHealth"
+  }
+
+  depends_on = [
+    module.monitoring
+  ]
+}
+
 resource "azurerm_monitor_diagnostic_setting" "app_service" {
   count                      = 1
   name                       = format("diag-%s-app", local.name_prefix)

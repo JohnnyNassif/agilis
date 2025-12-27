@@ -1,4 +1,4 @@
-# Backups and Recovery Expectations (Client)
+# Backups and Recovery Expectations
 
 This document explains what is backed up, retention expectations, and how to request a restore.
 
@@ -14,16 +14,13 @@ This document explains what is backed up, retention expectations, and how to req
   - **Continuous** (point‑in‑time restore), or
   - **Periodic** (scheduled backups with a fixed retention window)
 
-**Current infrastructure behavior (reference):**
-- If continuous backups are enabled: restore uses a **point-in-time** workflow.
-- If periodic backups are enabled: backups run every **240 minutes** with **8 hours** retention.
+**Note:** The exact backup mode and retention window depend on the environment configuration. Confirm the current settings with the Agilis operator during onboarding.
 
 ---
 
 ### Storage Account (PHI files)
 - Storage uses a lifecycle policy for long-term retention and cost management.
 - Policy expectations include:
-  - archive movement for old files
   - deletion after long retention (example: 7 years) depending on policy configuration
 
 **Important:** Deletions performed by lifecycle policy are intended and may be permanent. Confirm retention requirements before production use.
@@ -83,6 +80,8 @@ When a restore is needed, send the following to the Agilis operator:
   - lifecycle policy deletion
   - soft delete / snapshots (if enabled)
 
+**Note:** Storage tiering behavior (Hot/Cool/Archive) depends on Storage replication/account capabilities and policy configuration. If you have a specific tiering/retention requirement, request confirmation from the Agilis operator.
+
 ### Key Vault
 - If a secret was deleted and soft delete is enabled, it may be recoverable.
 
@@ -93,6 +92,8 @@ When a restore is needed, send the following to the Agilis operator:
 - Define RPO/RTO targets for production.
 - Perform a **planned restore test** after go-live (and periodically after).
 - Treat lifecycle policy deletions as permanent unless a separate legal hold process is defined.
+
+
 
 
 

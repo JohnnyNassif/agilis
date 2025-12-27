@@ -32,6 +32,15 @@ resource "azurerm_key_vault" "this" {
 
   # Enable RBAC for access control (modern approach)
   enable_rbac_authorization = true
+
+  lifecycle {
+    # HIPAA hardening may disable public network access and tighten network ACLs post-deploy.
+    # Do not let Terraform revert manual hardening.
+    ignore_changes = [
+      public_network_access_enabled,
+      network_acls,
+    ]
+  }
 }
 
 # Private DNS Zone for Key Vault

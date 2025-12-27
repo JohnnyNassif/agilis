@@ -1,4 +1,4 @@
-# Security Hardening and Verification (Client)
+# Security Hardening and Verification
 
 This document describes the **required** security hardening steps and verification checks to perform after Terraform deployment, especially for environments that will store **PHI**.
 
@@ -17,8 +17,8 @@ Use the shared checklist as the step-by-step source of truth:
 - `../shared/HIPAA_COMPLIANCE_MANUAL_CHECKLIST.md`
 
 This covers:
-- App Service access restrictions (Front Door only + deny all)
-- Disable public network access for Storage Account, Key Vault, and Cosmos DB
+- App Service access restrictions (**Front Door only + deny all**, including **SCM/Kudu**)
+- Disable public network access for Storage Account, Key Vault, and Cosmos DB (and confirm firewall defaults)
 - Verification steps (private DNS + access)
 
 ---
@@ -32,6 +32,8 @@ This covers:
 ### 2) Storage / Key Vault / Cosmos DB public access is disabled
 - Portal checks show public network access disabled
 - Private endpoint DNS resolution works from inside the VNet (jump VM)
+
+**Key Vault note:** For hardened environments, Key Vault network ACLs should be set to **Default action: Deny** with **Bypass: None**, and **Public network access: Disabled**.
 
 ### 3) Logging/monitoring is active
 - App Insights receiving telemetry

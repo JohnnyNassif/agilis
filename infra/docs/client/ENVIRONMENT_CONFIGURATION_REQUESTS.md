@@ -1,4 +1,4 @@
-# Environment Configuration Requests (Client)
+# Environment Configuration Requests
 
 This document explains how the client requests application configuration changes (environment variables, feature flags, endpoints) for **dev/prod** environments.
 
@@ -76,7 +76,7 @@ After the change, the operator will notify the client and request verification.
 
 ---
 
-## Verification checklist (client)
+## Verification checklist
 
 After you are told the change is applied:
 1. Verify frontend loads (Front Door/custom domain)
@@ -85,6 +85,8 @@ After you are told the change is applied:
 4. Confirm expected behavior changed (feature flag, integration, etc.)
 
 If verification fails, escalate using `RELEASE_PROCESS_AND_SUPPORT.md`.
+
+
 
 
 

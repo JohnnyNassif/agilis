@@ -1,4 +1,4 @@
-# Operations and Monitoring Guide (Client)
+# Operations and Monitoring Guide
 
 This guide describes what to monitor day-to-day, where to look when something breaks, and how to validate that the platform is operating as expected.
 
